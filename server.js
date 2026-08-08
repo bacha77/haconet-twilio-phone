@@ -212,39 +212,46 @@ app.post('/whatsapp', async (req, res) => {
         // 4. Handle active bot logic
         if (incomingMsg === '1') {
             twiml.message(
-                "📍 *Immigration Services / Services d'immigration / Sèvis Imigrasyon*\n\n" +
+                "📍 *SÈVIS IMIGRASYON* / Immigration Services / Services d'immigration\n\n" +
+                "*Haconet ofri asistans nan plizyè domèn imigrasyon. Tanpri reponn ak lèt ki koresponn lan pou plis enfòmasyon:*\n" +
                 "Haconet provides assistance with several immigration topics. Please reply with the letter for more info:\n\n" +
-                "1A - TPS (Temporary Protected Status)\n" +
-                "1B - Asylum Cases (Cas d'asile / Ka Azil)\n" +
-                "1C - Court Cases (Cas de tribunal / Tribinal)"
+                "1A - *TPS* (Estati Pwoteksyon Tanporè)\n" +
+                "1B - *Ka Azil* (Asylum Cases / Cas d'asile)\n" +
+                "1C - *Ka Tribinal* (Court Cases / Cas de tribunal)"
             );
         } else if (incomingMsg === '1a') {
-            twiml.message("🛂 *TPS:* For TPS applications or renewals, please ensure you have your Haitian passport and proof of continuous residence. Call us during business hours to schedule a consultation. / Pou TPS, asire w ou gen paspò w. Rele nou pandan lè travay.");
+            twiml.message("🛂 *TPS:* Pou aplikasyon oswa renouvèlman TPS, tanpri asire ou gen paspò ayisyen ou ak prèv ou abite isit la kontinyèlman. Rele nou pandan lè biwo a louvri pou yon konsiltasyon.\n\nFor TPS applications or renewals, please ensure you have your Haitian passport and proof of continuous residence. Call us during business hours to schedule a consultation.");
         } else if (incomingMsg === '1b') {
-            twiml.message("⚖️ *Asylum / Azil:* Asylum cases require a detailed consultation. Please call our immigration hotline to speak with a specialist. / Ka azil mande yon konsiltasyon an pwofondè. Tanpri rele nou.");
+            twiml.message("⚖️ *AZIL / Asylum:* Ka azil yo mande yon konsiltasyon an detay. Tanpri rele liy imigrasyon nou an pou pale ak yon espesyalis.\n\nAsylum cases require a detailed consultation. Please call our immigration hotline to speak with a specialist.");
         } else if (incomingMsg === '1c') {
-            twiml.message("🏛️ *Court Cases / Tribinal:* If you have an upcoming immigration court date, please contact our office immediately with your Notice to Appear (NTA). / Si w gen dat tribinal, kontakte nou imedyatman.");
+            twiml.message("🏛️ *TRIBINAL / Court Cases:* Si ou gen yon dat tribinal imigrasyon ki ap vini, tanpri kontakte biwo nou imedyatman avèk Avi pou Parèt ou a (Notice to Appear - NTA).\n\nIf you have an upcoming immigration court date, please contact our office immediately with your Notice to Appear (NTA).");
         } else if (incomingMsg === '2') {
             twiml.message(
-                "📚 *ESL Program / Programme d'anglais / Pwogram Anglè*\n\n" +
-                "Our English classes are designed for all levels! To enroll, please call our main office. / Kou anglè nou yo fèt pou tout nivo. Pou enskri, rele biwo nou."
+                "📚 *PWOGRAM ANGLÈ* / ESL Program / Programme d'anglais\n\n" +
+                "*Kou anglè nou yo fèt pou moun nan tout nivo! Pou anrejistre, tanpri rele biwo prensipal nou an.*\n\n" +
+                "Our English classes are designed for all levels! To enroll, please call our main office."
             );
         } else if (incomingMsg === '3') {
             // AUTOMATIC BOT PAUSE
             await setBotStatus(callerNumber, false);
             twiml.message(
-                "❓ *Other / Autre / Lòt Kesyon*\n\n" +
-                "Please type your question or send a voice note here, and a representative will reply to you shortly. / Tanpri ekri kesyon w lan oswa voye yon mesaj vwa la, yon reprezantan ap reponn ou talè."
+                "❓ *LÒT KESYON* / Other / Autre\n\n" +
+                "*Tanpri ekri kesyon ou a, oubyen voye yon mesaj vwa la a, epi yon reprezantan ap reponn ou byen vit.*\n\n" +
+                "Please type your question or send a voice note here, and a representative will reply to you shortly."
             );
         } else {
-            let greeting = "👋 Welcome to Haconet! / Bienvenue à Haconet! / Byenveni nan Haconet!\n\n" +
-                "Please reply with a number to get started / Reponn ak yon nimewo:\n\n" +
-                "1️⃣ - Immigration (TPS, Asylum, Court Cases)\n" +
-                "2️⃣ - English Classes (ESL) / Pwogram Anglè\n" +
-                "3️⃣ - Other Questions / Lòt Kesyon";
+            let greeting = "👋 *BYENVENI NAN HACONET!*\n" + 
+                "Welcome to Haconet! / Bienvenue à Haconet!\n\n" +
+                "*Tanpri reponn avèk yon nimewo pou kòmanse:*\n" +
+                "Please reply with a number to get started:\n\n" +
+                "1️⃣ - *Imigrasyon* (Immigration - TPS, Asylum, Court Cases)\n" +
+                "2️⃣ - *Kou Anglè* (English Classes - ESL)\n" +
+                "3️⃣ - *Lòt Kesyon* (Other Questions / Autres Questions)";
                 
             if (!isBusinessHours()) {
-                greeting = "🌙 *Office Closed / Bureau Fermé / Biwo Fèmen*\nOur office is currently closed (Mon-Fri 9AM-5PM). We will reply on the next business day. / Biwo nou fèmen kounye a. Nou ap reponn pwochen jou travay la.\n\n---\n\n" + greeting;
+                greeting = "🌙 *BIWO FÈMEN* / Office Closed / Bureau Fermé\n" +
+                           "*Biwo nou fèmen kounye a (Lendi rive Vandredi, 9è nan maten pou 5è nan aswè). Nou ap reponn ou pwochen jou travay la.*\n\n" +
+                           "Our office is currently closed (Mon-Fri 9AM-5PM). We will reply on the next business day.\n\n---\n\n" + greeting;
             }
             twiml.message(greeting);
         }
