@@ -5,11 +5,39 @@ const twilio = require('twilio');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const { OpenAI } = require('openai');
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const app = express();
 app.use(cors());
 app.use(express.json()); 
 app.use(urlencoded({ extended: false }));
+
+async function downloadTwilioMedia(mediaUrl) {
+    return new Promise((resolve, reject) => {
+        const auth = Buffer.from(process.env.TWILIO_ACCOUNT_SID + ':' + process.env.TWILIO_AUTH_TOKEN).toString('base64');
+        const https = require('https');
+        https.get(mediaUrl, { headers: { 'Authorization': `Basic ${auth}` } }, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                https.get(res.headers.location, (s3Res) => {
+                    const tempFilePath = path.join(os.tmpdir(), Date.now() + '-' + Math.random().toString(36).substring(7) + '.ogg');
+                    const fileStream = fs.createWriteStream(tempFilePath);
+                    s3Res.pipe(fileStream);
+                    fileStream.on('finish', () => resolve(tempFilePath));
+                }).on('error', reject);
+            } else {
+                const tempFilePath = path.join(os.tmpdir(), Date.now() + '-' + Math.random().toString(36).substring(7) + '.ogg');
+                const fileStream = fs.createWriteStream(tempFilePath);
+                res.pipe(fileStream);
+                fileStream.on('finish', () => resolve(tempFilePath));
+            }
+        }).on('error', reject);
+    });
+}
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
 const MessagingResponse = twilio.twiml.MessagingResponse;
@@ -255,65 +283,88 @@ app.post('/whatsapp', async (req, res) => {
         );
 
         // 2. Check if Bot is active for this user
-        const { data: contact } = await supabase
-            .from('contacts')
+        const { data: botStatusData } = await supabase
+            .from('bot_status')
             .select('bot_active')
             .eq('phone_number', callerNumber)
             .single();
         
-        const isBotActive = contact ? contact.bot_active : true;
+        const isBotActive = botStatusData ? botStatusData.bot_active : true;
 
-        // 3. If bot is paused, stay silent! (Send empty response)
+        // 3. If bot is paused, stay silent!
         if (!isBotActive) {
             res.type('text/xml');
             return res.send('<Response></Response>'); 
         }
 
-        // 4. Handle active bot logic
-        if (incomingMsg === '1') {
-            twiml.message(
-                "📍 *SÈVIS IMIGRASYON* / Immigration Services / Services d'immigration\n\n" +
-                "*Haconet ofri asistans nan plizyè domèn imigrasyon. Tanpri reponn ak lèt ki koresponn lan pou plis enfòmasyon:*\n" +
-                "Haconet provides assistance with several immigration topics. Please reply with the letter for more info:\n\n" +
-                "1A - *TPS* (Estati Pwoteksyon Tanporè)\n" +
-                "1B - *Ka Azil* (Asylum Cases / Cas d'asile)\n" +
-                "1C - *Ka Tribinal* (Court Cases / Cas de tribunal)"
-            );
-        } else if (incomingMsg === '1a') {
-            twiml.message("🛂 *TPS:* Pou aplikasyon oswa renouvèlman TPS, tanpri asire ou gen paspò ayisyen ou ak prèv ou abite isit la kontinyèlman. Rele nou pandan lè biwo a louvri pou yon konsiltasyon.\n\nFor TPS applications or renewals, please ensure you have your Haitian passport and proof of continuous residence. Call us during business hours to schedule a consultation.");
-        } else if (incomingMsg === '1b') {
-            twiml.message("⚖️ *AZIL / Asylum:* Ka azil yo mande yon konsiltasyon an detay. Tanpri rele liy imigrasyon nou an pou pale ak yon espesyalis.\n\nAsylum cases require a detailed consultation. Please call our immigration hotline to speak with a specialist.");
-        } else if (incomingMsg === '1c') {
-            twiml.message("🏛️ *TRIBINAL / Court Cases:* Si ou gen yon dat tribinal imigrasyon ki ap vini, tanpri kontakte biwo nou imedyatman avèk Avi pou Parèt ou a (Notice to Appear - NTA).\n\nIf you have an upcoming immigration court date, please contact our office immediately with your Notice to Appear (NTA).");
-        } else if (incomingMsg === '2') {
-            twiml.message(
-                "📚 *PWOGRAM ANGLÈ* / ESL Program / Programme d'anglais\n\n" +
-                "*Kou anglè nou yo fèt pou moun nan tout nivo! Pou anrejistre, tanpri rele biwo prensipal nou an.*\n\n" +
-                "Our English classes are designed for all levels! To enroll, please call our main office."
-            );
-        } else if (incomingMsg === '3') {
-            // AUTOMATIC BOT PAUSE
-            await setBotStatus(callerNumber, false);
-            twiml.message(
-                "❓ *LÒT KESYON* / Other / Autre\n\n" +
-                "*Tanpri ekri kesyon ou a, oubyen voye yon mesaj vwa la a, epi yon reprezantan ap reponn ou byen vit.*\n\n" +
-                "Please type your question or send a voice note here, and a representative will reply to you shortly."
-            );
-        } else {
-            let greeting = "👋 *BYENVENI NAN HACONET!*\n" + 
-                "Welcome to Haconet! / Bienvenue à Haconet!\n\n" +
-                "*Tanpri reponn avèk yon nimewo pou kòmanse:*\n" +
-                "Please reply with a number to get started:\n\n" +
-                "1️⃣ - *Imigrasyon* (Immigration - TPS, Asylum, Court Cases)\n" +
-                "2️⃣ - *Kou Anglè* (English Classes - ESL)\n" +
-                "3️⃣ - *Lòt Kesyon* (Other Questions / Autres Questions)";
+        // 4. Handle active bot logic with OpenAI AI Chatbot
+        let aiUserMessage = incomingMsgRaw;
+        
+        if (mediaUrl && mediaType && mediaType.startsWith('audio/')) {
+            try {
+                const filePath = await downloadTwilioMedia(mediaUrl);
+                const transcription = await openai.audio.transcriptions.create({
+                    file: fs.createReadStream(filePath),
+                    model: 'whisper-1'
+                });
+                aiUserMessage = transcription.text;
+                fs.unlinkSync(filePath); // clean up
                 
-            if (!isBusinessHours()) {
-                greeting = "🌙 *BIWO FÈMEN* / Office Closed / Bureau Fermé\n" +
-                           "*Biwo nou fèmen kounye a (Lendi rive Vandredi, 9è nan maten pou 5è nan aswè). Nou ap reponn ou pwochen jou travay la.*\n\n" +
-                           "Our office is currently closed (Mon-Fri 9AM-5PM). We will reply on the next business day.\n\n---\n\n" + greeting;
+                // Optional: Save transcription back to the messages table
+                await supabase.from('messages').update({ body: `[Transcribed Voice Note]: ${aiUserMessage}` }).eq('media_url', mediaUrl);
+            } catch(err) {
+                console.error('Transcription error:', err);
+                aiUserMessage = "";
             }
-            twiml.message(greeting);
+        }
+
+        if (aiUserMessage && aiUserMessage.trim() !== '') {
+            const { data: history } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('sender_number', callerNumber)
+                .order('created_at', { ascending: false })
+                .limit(10);
+            
+            const formattedHistory = (history || []).reverse().map(msg => ({
+                role: msg.direction === 'inbound' ? 'user' : 'assistant',
+                content: msg.body && !msg.body.includes('[Transcribed') ? msg.body : (msg.media_url ? 'Sent a media attachment' : msg.body)
+            }));
+            
+            const systemPrompt = `You are a helpful assistant for Haconet (Haitian Community Network) in Columbus, OH. 
+Your primary language is Haitian Creole. Always reply in Haitian Creole unless asked otherwise by the user. 
+You provide help with Immigration (TPS, Asylum, Court Cases) and English Classes (ESL). 
+If the user's question requires a human representative (e.g., they want to talk to someone, book an appointment, or you don't know the answer), reply politely in Creole and include the exact text "[PAUSE_BOT]" at the end of your message. This will trigger the human fallback. 
+Keep your responses short, concise, and friendly.`;
+
+            formattedHistory.unshift({ role: 'system', content: systemPrompt });
+            formattedHistory[formattedHistory.length - 1].content = aiUserMessage;
+
+            const completion = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: formattedHistory
+            });
+
+            let aiResponse = completion.choices[0].message.content;
+            let shouldPause = false;
+            
+            if (aiResponse.includes('[PAUSE_BOT]')) {
+                shouldPause = true;
+                aiResponse = aiResponse.replace('[PAUSE_BOT]', '').trim();
+            }
+            
+            if (!isBusinessHours()) {
+                aiResponse = "🌙 *BIWO FÈMEN*\n*Biwo nou fèmen kounye a (Lendi-Vandredi 9AM-5PM). Nou ap reponn pwochen jou travay la.*\n---\n" + aiResponse;
+            }
+
+            twiml.message(aiResponse);
+
+            if (shouldPause) {
+                await setBotStatus(callerNumber, false);
+            }
+        } else {
+            // Empty message or unsupported media
+            twiml.message("Tanpri voye yon mesaj tèks oswa yon mesaj vwa.");
         }
 
         res.type('text/xml');
