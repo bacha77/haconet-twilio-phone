@@ -479,8 +479,8 @@ app.post('/language', (req, res) => {
 app.post('/menu/main', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
-    gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. For English, press 1.');
-    gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Pour continuer en français, appuyez sur le 2.');
+    gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. Thank you for calling us today. We are happy to assist you! For English, please press 1.');
+    gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Bienvenue à Haconet. Merci de nous avoir appelés aujourd\'hui. Nous sommes heureux de vous aider! Pour continuer en français, veuillez appuyer sur le 2.');
     twiml.redirect('/menu/main');
     res.type('text/xml');
     res.send(twiml.toString());
