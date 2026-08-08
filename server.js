@@ -8,6 +8,7 @@ const app = express();
 app.use(urlencoded({ extended: false }));
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
+const MessagingResponse = twilio.twiml.MessagingResponse;
 const PORT = process.env.PORT || 3000;
 
 // Config variables
@@ -61,6 +62,53 @@ async function sendSmsConfirmation(callerNumber) {
         console.error('Error sending SMS:', error);
     }
 }
+
+// --- WHATSAPP & SMS CHATBOT ROUTE ---
+app.post('/whatsapp', (req, res) => {
+    const twiml = new MessagingResponse();
+    // Get the incoming message, make it lowercase, remove extra spaces
+    const incomingMsg = req.body.Body ? req.body.Body.trim().toLowerCase() : '';
+
+    // Chatbot Routing Logic
+    if (incomingMsg === '1') {
+        twiml.message(
+            "📍 *Immigration Services / Services d'immigration*\n\n" +
+            "Haconet provides assistance with several immigration topics. Please reply with the letter for more info:\n\n" +
+            "1A - TPS (Temporary Protected Status)\n" +
+            "1B - Asylum Cases (Cas d'asile)\n" +
+            "1C - Court Cases (Cas de tribunal)"
+        );
+    } else if (incomingMsg === '1a') {
+        twiml.message("🛂 *TPS:* For TPS applications or renewals, please ensure you have your Haitian passport and proof of continuous residence. Call us during business hours to schedule a consultation.");
+    } else if (incomingMsg === '1b') {
+        twiml.message("⚖️ *Asylum:* Asylum cases require a detailed consultation. Please call our immigration hotline to speak with a specialist.");
+    } else if (incomingMsg === '1c') {
+        twiml.message("🏛️ *Court Cases:* If you have an upcoming immigration court date, please contact our office immediately with your Notice to Appear (NTA).");
+    } else if (incomingMsg === '2') {
+        twiml.message(
+            "📚 *ESL Program / Programme d'anglais*\n\n" +
+            "Our English classes are designed for all levels! We offer Basic, Intermediate, and Advanced classes. To enroll, please call our main office or visit our center."
+        );
+    } else if (incomingMsg === '3') {
+        twiml.message(
+            "❓ *Other / Autre*\n\n" +
+            "Please type your question here, and a representative will reply to you shortly. You can also email us at info@haconet.org."
+        );
+    } else {
+        // Default menu (If they say "Hi" or send an invalid command)
+        twiml.message(
+            "👋 Welcome to Haconet! / Bienvenue à Haconet!\n\n" +
+            "Please reply with a number to get started:\n\n" +
+            "1️⃣ - Immigration (TPS, Asylum, Court Cases)\n" +
+            "2️⃣ - English Classes (ESL)\n" +
+            "3️⃣ - Other Questions / Autres Questions"
+        );
+    }
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
 
 // Initial greeting and language selection
 app.post('/voice', (req, res) => {
