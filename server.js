@@ -476,10 +476,34 @@ app.post('/language', (req, res) => {
     res.send(twiml.toString());
 });
 
+app.post('/menu/main', (req, res) => {
+    const twiml = new VoiceResponse();
+    const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
+    gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. For English, press 1.');
+    gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Pour continuer en français, appuyez sur le 2.');
+    twiml.redirect('/menu/main');
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
+app.post('/gather/main', (req, res) => {
+    const twiml = new VoiceResponse();
+    if (req.body.Digits === '1') {
+        twiml.redirect('/menu/en');
+    } else if (req.body.Digits === '2') {
+        twiml.redirect('/menu/fr');
+    } else {
+        twiml.say({ voice: 'Polly.Joanna' }, 'Sorry, I don\'t understand that choice.');
+        twiml.redirect('/menu/main');
+    }
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
 app.post('/menu/en', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/en', method: 'POST' });
-    gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our E S L Program, press 2. For any other questions, press 3.');
+    gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our E S L Program, press 2. For Health, press 3. For any other questions, press 4.');
     twiml.redirect('/menu/en');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -487,36 +511,63 @@ app.post('/menu/en', (req, res) => {
 
 app.post('/gather/en', (req, res) => {
     const twiml = new VoiceResponse();
+    let department = 'General';
     switch (req.body.Digits) {
         case '1':
-            twiml.say({ voice: 'Polly.Joanna' }, 'You have reached the Immigration department. Please wait while we connect you to a representative.');
-            twiml.dial(IMMIGRATION_NUMBER);
+            department = 'Immigration';
             break;
         case '2':
-            twiml.say({ voice: 'Polly.Joanna' }, 'You have reached the E S L Program. Please wait while we connect you to an instructor.');
-            twiml.dial(ESL_NUMBER);
+            department = 'ESL';
             break;
         case '3':
-            twiml.say({ voice: 'Polly.Joanna' }, 'For all other questions, please leave a message after the beep.');
-            twiml.record({ action: '/voicemail/en', maxLength: 60 });
+            department = 'Health';
+            break;
+        case '4':
+            department = 'General';
             break;
         default:
             twiml.say({ voice: 'Polly.Joanna' }, 'Sorry, I don\'t understand that choice.');
             twiml.redirect('/menu/en');
-            break;
+            return res.type('text/xml').send(twiml.toString());
     }
+    
+    twiml.say({ voice: 'Polly.Joanna' }, 'Please leave a message after the beep.');
+    twiml.record({ action: `/voicemail/en?dept=${department}`, maxLength: 60 });
     res.type('text/xml');
     res.send(twiml.toString());
 });
 
-app.post('/voicemail/en', (req, res) => {
+app.post('/voicemail/en', async (req, res) => {
     const twiml = new VoiceResponse();
     const recordingUrl = req.body.RecordingUrl;
-    const callerNumber = req.body.From;
-    if (recordingUrl && callerNumber) {
-        sendVoicemailEmail(recordingUrl, callerNumber);
-        sendSmsConfirmation(callerNumber);
+    const rawCallerNumber = req.body.From;
+    const department = req.query.dept || 'General';
+
+    if (recordingUrl && rawCallerNumber && supabase) {
+        const callerNumber = rawCallerNumber.startsWith('whatsapp:') ? rawCallerNumber : 'whatsapp:' + rawCallerNumber;
+        
+        try {
+            await supabase.from('contacts').upsert([{ 
+                phone_number: callerNumber, 
+                department: department,
+                last_updated: new Date()
+            }]);
+            
+            await supabase.from('messages').insert([{
+                sender_number: callerNumber,
+                body: `📞 New Voicemail (${department})`,
+                media_url: recordingUrl,
+                media_type: 'audio/wav',
+                direction: 'inbound'
+            }]);
+        } catch (e) {
+            console.error('Voicemail DB Error:', e);
+        }
+
+        if (typeof sendVoicemailEmail === 'function') sendVoicemailEmail(recordingUrl, rawCallerNumber);
+        if (typeof sendSmsConfirmation === 'function') sendSmsConfirmation(rawCallerNumber);
     }
+    
     twiml.say({ voice: 'Polly.Joanna' }, 'Your message has been recorded. Thank you for calling Haconet. Goodbye.');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -525,7 +576,7 @@ app.post('/voicemail/en', (req, res) => {
 app.post('/menu/fr', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
-    gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Byenveni nan Haconet. Pou Imigrasyon, peze youn. Pou klas angle, peze de. Pou Sante, peze twa. Pou nenpòt lòt kesyon, peze kat.');
+    gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Pour toute question concernant l\'immigration, appuyez sur le 1. Pour notre programme d\'anglais langue seconde, appuyez sur le 2. Pour les questions de santé, appuyez sur le 3. Pour toute autre question, appuyez sur le 4.');
     twiml.redirect('/menu/fr');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -548,12 +599,12 @@ app.post('/gather/fr', (req, res) => {
             department = 'General';
             break;
         default:
-            twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Mwen pa konprann. Tanpri eseye ankò.');
+            twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Désolé, je ne comprends pas ce choix. Veuillez réessayer.');
             twiml.redirect('/menu/fr');
             return res.type('text/xml').send(twiml.toString());
     }
     
-    twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Tanpri, kite mesaj ou a aprè bip la.');
+    twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Veuillez laisser un message après le bip sonore.');
     twiml.record({ action: `/voicemail/fr?dept=${department}`, maxLength: 60 });
     res.type('text/xml');
     res.send(twiml.toString());
@@ -580,7 +631,7 @@ app.post('/voicemail/fr', async (req, res) => {
             // Insert voicemail audio into the dashboard inbox
             await supabase.from('messages').insert([{
                 sender_number: callerNumber,
-                body: `📞 Nouvo Vwa Mesaj (${department})`,
+                body: `📞 Nouveau Message Vocal (${department})`,
                 media_url: recordingUrl,
                 media_type: 'audio/wav',
                 direction: 'inbound'
@@ -594,7 +645,7 @@ app.post('/voicemail/fr', async (req, res) => {
         if (typeof sendSmsConfirmation === 'function') sendSmsConfirmation(rawCallerNumber);
     }
     
-    twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Mesaj ou a anrejistre. Mèsi dèske ou te rele Haconet. Orevwa.');
+    twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Votre message a été enregistré. Merci d\'avoir appelé Haconet. Au revoir.');
     res.type('text/xml');
     res.send(twiml.toString());
 });
