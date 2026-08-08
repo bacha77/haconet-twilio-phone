@@ -480,7 +480,7 @@ app.post('/menu/main', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
     gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. Thank you for calling us today. We are happy to assist you! For English, please press 1.');
-    gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Bienvenue à Haconet. Merci de nous avoir appelés aujourd\'hui. Nous sommes heureux de vous aider! Pour continuer en français, veuillez appuyer sur le 2.');
+    gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Bienvenue chez Haconet. Merci de votre appel. Pour continuer en français, tapez 2.');
     twiml.redirect('/menu/main');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -576,7 +576,7 @@ app.post('/voicemail/en', async (req, res) => {
 app.post('/menu/fr', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
-    gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Pour toute question concernant l\'immigration, appuyez sur le 1. Pour notre programme d\'anglais langue seconde, appuyez sur le 2. Pour les questions de santé, appuyez sur le 3. Pour toute autre question, appuyez sur le 4.');
+    gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service d\'immigration, tapez 1. Pour notre programme d\'anglais, tapez 2. Pour le service de santé, tapez 3. Pour toute autre demande, tapez 4.');
     twiml.redirect('/menu/fr');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -599,12 +599,12 @@ app.post('/gather/fr', (req, res) => {
             department = 'General';
             break;
         default:
-            twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Désolé, je ne comprends pas ce choix. Veuillez réessayer.');
+            twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Désolé, ce choix n\'est pas valide. Veuillez réessayer.');
             twiml.redirect('/menu/fr');
             return res.type('text/xml').send(twiml.toString());
     }
     
-    twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Veuillez laisser un message après le bip sonore.');
+    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Veuillez laisser votre message après le bip sonore.');
     twiml.record({ action: `/voicemail/fr?dept=${department}`, maxLength: 60 });
     res.type('text/xml');
     res.send(twiml.toString());
@@ -645,7 +645,7 @@ app.post('/voicemail/fr', async (req, res) => {
         if (typeof sendSmsConfirmation === 'function') sendSmsConfirmation(rawCallerNumber);
     }
     
-    twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Votre message a été enregistré. Merci d\'avoir appelé Haconet. Au revoir.');
+    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Votre message a bien été enregistré. Merci d\'avoir appelé Haconet. Au revoir.');
     res.type('text/xml');
     res.send(twiml.toString());
 });
