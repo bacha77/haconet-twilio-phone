@@ -187,15 +187,53 @@ app.post('/api/broadcast', async (req, res) => {
 
 // --- DASHBOARD API: RESOLVE CONVERSATION ---
 app.post('/api/resolve', async (req, res) => {
-    const { phone_number } = req.body;
-    try {
-        await supabase.from('contacts')
-            .update({ status: 'resolved' })
-            .eq('phone_number', phone_number);
-        res.json({ success: true });
-    } catch (e) {
-        res.status(500).send(e.message);
-    }
+  const { phone_number } = req.body;
+  if (!phone_number) return res.status(400).send('phone_number required');
+  try {
+    await supabase.from('contacts').update({ status: 'resolved' }).eq('phone_number', phone_number);
+    res.send({ success: true });
+  } catch (error) {
+    console.error('Resolve Error:', error);
+    res.status(500).send(error.toString());
+  }
+});
+
+// Update CRM Profile (Name, Email, Notes, Address)
+app.post('/api/update-contact', async (req, res) => {
+  const { phone_number, first_name, last_name, email, notes, address } = req.body;
+  if (!phone_number) return res.status(400).send('phone_number required');
+  try {
+    await supabase.from('contacts').update({ 
+      first_name, 
+      last_name, 
+      email, 
+      notes,
+      address
+    }).eq('phone_number', phone_number);
+    res.send({ success: true });
+  } catch (error) {
+    console.error('Update Contact Error:', error);
+    res.status(500).send(error.toString());
+  }
+});
+
+// AI Translation Endpoint
+app.post('/api/translate', async (req, res) => {
+  const { text, target } = req.body;
+  if (!text) return res.status(400).send('text required');
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+    const prompt = target === 'creole' 
+      ? `Translate the following English text into clear, natural Haitian Creole. Respond ONLY with the translation, nothing else.\n\nText: ${text}`
+      : `Translate the following Haitian Creole text into clear, professional English. Respond ONLY with the translation, nothing else.\n\nText: ${text}`;
+      
+    const result = await model.generateContent(prompt);
+    const translation = result.response.text();
+    res.send({ translation });
+  } catch (error) {
+    console.error('Translation Error:', error);
+    res.status(500).send(error.toString());
+  }
 });
 
 // --- DASHBOARD API: TOGGLE BOT ---
@@ -487,7 +525,7 @@ app.post('/voicemail/en', (req, res) => {
 app.post('/menu/fr', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
-    gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Pour toute question concernant l\'immigration, appuyez sur le 1. Pour notre programme d\'anglais langue seconde, appuyez sur le 2. Pour toute autre question, appuyez sur le 3.');
+    gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Byenveni nan Haconet. Pou Imigrasyon, peze youn. Pou klas angle, peze de. Pou Sante, peze twa. Pou nenpòt lòt kesyon, peze kat.');
     twiml.redirect('/menu/fr');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -495,37 +533,68 @@ app.post('/menu/fr', (req, res) => {
 
 app.post('/gather/fr', (req, res) => {
     const twiml = new VoiceResponse();
+    let department = 'General';
     switch (req.body.Digits) {
         case '1':
-            twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Vous avez joint le département d\'immigration. Veuillez patienter pendant que nous vous mettons en communication avec un représentant.');
-            twiml.dial(IMMIGRATION_NUMBER);
+            department = 'Immigration';
             break;
         case '2':
-            twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Vous avez joint le programme d\'anglais langue seconde. Veuillez patienter pendant que nous vous mettons en communication avec un professeur.');
-            twiml.dial(ESL_NUMBER);
+            department = 'ESL';
             break;
         case '3':
-            twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Pour toute autre question, veuillez laisser un message après le bip sonore.');
-            twiml.record({ action: '/voicemail/fr', maxLength: 60 });
+            department = 'Health';
+            break;
+        case '4':
+            department = 'General';
             break;
         default:
-            twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Désolé, je ne comprends pas ce choix.');
+            twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Mwen pa konprann. Tanpri eseye ankò.');
             twiml.redirect('/menu/fr');
-            break;
+            return res.type('text/xml').send(twiml.toString());
     }
+    
+    twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Tanpri, kite mesaj ou a aprè bip la.');
+    twiml.record({ action: `/voicemail/fr?dept=${department}`, maxLength: 60 });
     res.type('text/xml');
     res.send(twiml.toString());
 });
 
-app.post('/voicemail/fr', (req, res) => {
+app.post('/voicemail/fr', async (req, res) => {
     const twiml = new VoiceResponse();
     const recordingUrl = req.body.RecordingUrl;
-    const callerNumber = req.body.From;
-    if (recordingUrl && callerNumber) {
-        sendVoicemailEmail(recordingUrl, callerNumber);
-        sendSmsConfirmation(callerNumber);
+    const rawCallerNumber = req.body.From;
+    const department = req.query.dept || 'General';
+
+    if (recordingUrl && rawCallerNumber && supabase) {
+        // Unify with WhatsApp numbering format
+        const callerNumber = rawCallerNumber.startsWith('whatsapp:') ? rawCallerNumber : 'whatsapp:' + rawCallerNumber;
+        
+        try {
+            // Ensure contact exists and update department
+            await supabase.from('contacts').upsert([{ 
+                phone_number: callerNumber, 
+                department: department,
+                last_updated: new Date()
+            }]);
+            
+            // Insert voicemail audio into the dashboard inbox
+            await supabase.from('messages').insert([{
+                sender_number: callerNumber,
+                body: `📞 Nouvo Vwa Mesaj (${department})`,
+                media_url: recordingUrl,
+                media_type: 'audio/wav',
+                direction: 'inbound'
+            }]);
+        } catch (e) {
+            console.error('Voicemail DB Error:', e);
+        }
+
+        // Keep legacy email/sms notifications if functions exist
+        if (typeof sendVoicemailEmail === 'function') sendVoicemailEmail(recordingUrl, rawCallerNumber);
+        if (typeof sendSmsConfirmation === 'function') sendSmsConfirmation(rawCallerNumber);
     }
-    twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Votre message a été enregistré. Merci d\'avoir appelé Haconet. Au revoir.');
+    
+    twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Mesaj ou a anrejistre. Mèsi dèske ou te rele Haconet. Orevwa.');
     res.type('text/xml');
     res.send(twiml.toString());
 });
