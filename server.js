@@ -76,6 +76,26 @@ async function setBotStatus(phoneNumber, isActive) {
     }]);
 }
 
+// --- DASHBOARD API: MEDIA PROXY ---
+app.get('/api/media', (req, res) => {
+    const mediaUrl = req.query.url;
+    if (!mediaUrl) return res.status(400).send('Missing url');
+
+    const auth = Buffer.from(process.env.TWILIO_ACCOUNT_SID + ':' + process.env.TWILIO_AUTH_TOKEN).toString('base64');
+    const https = require('https');
+    
+    https.get(mediaUrl, { headers: { 'Authorization': `Basic ${auth}` } }, (twilioRes) => {
+        if (twilioRes.statusCode >= 300 && twilioRes.statusCode < 400 && twilioRes.headers.location) {
+            res.redirect(twilioRes.headers.location);
+        } else {
+            res.writeHead(twilioRes.statusCode, twilioRes.headers);
+            twilioRes.pipe(res);
+        }
+    }).on('error', (err) => {
+        res.status(500).send(err.message);
+    });
+});
+
 // --- DASHBOARD API: TOGGLE BOT ---
 app.post('/api/toggle-bot', async (req, res) => {
     const { to, bot_active } = req.body;
