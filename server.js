@@ -260,12 +260,21 @@ app.post('/whatsapp', async (req, res) => {
 
 
 app.post('/voice', (req, res) => {
-    // ... Voice logic remains the same ...
     const twiml = new VoiceResponse();
-    const gather = twiml.gather({ numDigits: 1, action: '/language', method: 'POST' });
-    gather.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. For English, press 1.');
-    gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Pour le français, appuyez sur le deux.');
-    twiml.say({ voice: 'Polly.Joanna' }, 'We didn\'t receive any input. Goodbye.');
+    
+    if (!isBusinessHours()) {
+        // After-hours Answering Machine
+        twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M. Please leave a message after the tone.');
+        twiml.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Veuillez laisser un message après le bip sonore.');
+        twiml.record({ action: '/voicemail/en', maxLength: 120 });
+    } else {
+        // Normal Business Hours Menu
+        const gather = twiml.gather({ numDigits: 1, action: '/language', method: 'POST' });
+        gather.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. For English, press 1.');
+        gather.say({ voice: 'Polly.Celine', language: 'fr-FR' }, 'Pour le français, appuyez sur le deux.');
+        twiml.say({ voice: 'Polly.Joanna' }, 'We didn\'t receive any input. Goodbye.');
+    }
+    
     res.type('text/xml');
     res.send(twiml.toString());
 });
