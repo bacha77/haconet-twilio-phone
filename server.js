@@ -125,6 +125,15 @@ app.post('/whatsapp', async (req, res) => {
     const incomingMsgRaw = req.body.Body || '';
     const incomingMsg = incomingMsgRaw.trim().toLowerCase();
     const callerNumber = req.body.From;
+    
+    // Extract Media if it exists (Voice Notes, Images)
+    const numMedia = parseInt(req.body.NumMedia || '0');
+    let mediaUrl = null;
+    let mediaType = null;
+    if (numMedia > 0) {
+        mediaUrl = req.body.MediaUrl0;
+        mediaType = req.body.MediaContentType0;
+    }
 
     if (!supabase || !callerNumber) {
         return res.send('<Response></Response>'); // Fail silently if no DB
@@ -135,7 +144,9 @@ app.post('/whatsapp', async (req, res) => {
         await supabase.from('messages').insert([{
             sender_number: callerNumber,
             body: incomingMsgRaw,
-            direction: 'inbound'
+            direction: 'inbound',
+            media_url: mediaUrl,
+            media_type: mediaType
         }]);
 
         // 2. Check if Bot is active for this user
