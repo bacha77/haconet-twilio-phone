@@ -9,8 +9,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { OpenAI } = require('openai');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const app = express();
 app.use(cors());
@@ -283,13 +283,13 @@ app.post('/whatsapp', async (req, res) => {
         );
 
         // 2. Check if Bot is active for this user
-        const { data: botStatusData } = await supabase
-            .from('bot_status')
+        const { data: contactData } = await supabase
+            .from('contacts')
             .select('bot_active')
             .eq('phone_number', callerNumber)
             .single();
         
-        const isBotActive = botStatusData ? botStatusData.bot_active : true;
+        const isBotActive = contactData ? contactData.bot_active : true;
 
         // 3. If bot is paused, stay silent!
         if (!isBotActive) {
@@ -297,17 +297,24 @@ app.post('/whatsapp', async (req, res) => {
             return res.send('<Response></Response>'); 
         }
 
-        // 4. Handle active bot logic with OpenAI AI Chatbot
+        // 4. Handle active bot logic with Gemini AI Chatbot
         let aiUserMessage = incomingMsgRaw;
         
         if (mediaUrl && mediaType && mediaType.startsWith('audio/')) {
             try {
                 const filePath = await downloadTwilioMedia(mediaUrl);
-                const transcription = await openai.audio.transcriptions.create({
-                    file: fs.createReadStream(filePath),
-                    model: 'whisper-1'
-                });
-                aiUserMessage = transcription.text;
+                const audioPart = {
+                    inlineData: {
+                        data: fs.readFileSync(filePath).toString("base64"),
+                        mimeType: mediaType
+                    }
+                };
+                const tempModel = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+                const transcriptionResult = await tempModel.generateContent([
+                    "Please transcribe this audio message into text exactly as spoken. Only output the transcription, nothing else.",
+                    audioPart
+                ]);
+                aiUserMessage = transcriptionResult.response.text();
                 fs.unlinkSync(filePath); // clean up
                 
                 // Optional: Save transcription back to the messages table
@@ -327,8 +334,8 @@ app.post('/whatsapp', async (req, res) => {
                 .limit(10);
             
             const formattedHistory = (history || []).reverse().map(msg => ({
-                role: msg.direction === 'inbound' ? 'user' : 'assistant',
-                content: msg.body && !msg.body.includes('[Transcribed') ? msg.body : (msg.media_url ? 'Sent a media attachment' : msg.body)
+                role: msg.direction === 'inbound' ? 'user' : 'model',
+                text: msg.body && !msg.body.includes('[Transcribed') ? msg.body : (msg.media_url ? 'Sent a media attachment' : msg.body)
             }));
             
             const systemPrompt = `You are a helpful assistant for Haconet (Haitian Community Network) in Columbus, OH. 
@@ -339,20 +346,23 @@ If the user's question requires a human representative (e.g., they want to talk 
 Keep your responses short, concise, and friendly.
 You MUST output your response in JSON format containing two keys: "reply" (your message) and "department" (the assigned department).`;
 
-            formattedHistory.unshift({ role: 'system', content: systemPrompt });
-            formattedHistory[formattedHistory.length - 1].content = aiUserMessage;
+            const historyText = formattedHistory.map(h => `${h.role}: ${h.text}`).join('\n');
+            const prompt = `Chat History:\n${historyText}\n\nCurrent User Message:\n${aiUserMessage}`;
 
-            const completion = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
-                messages: formattedHistory,
-                response_format: { type: "json_object" }
+            const model = genAI.getGenerativeModel({
+                model: "gemini-3.6-flash",
+                systemInstruction: systemPrompt,
+                generationConfig: { responseMimeType: "application/json" }
             });
+
+            const completion = await model.generateContent(prompt);
+            const responseText = completion.response.text();
 
             let aiResponse = "Eskize m, mwen pa konprann. (Error)";
             let aiDepartment = "General";
             
             try {
-                const aiData = JSON.parse(completion.choices[0].message.content);
+                const aiData = JSON.parse(responseText);
                 aiResponse = aiData.reply;
                 aiDepartment = aiData.department || 'General';
                 
@@ -360,7 +370,7 @@ You MUST output your response in JSON format containing two keys: "reply" (your 
                 await supabase.from('contacts').update({ department: aiDepartment }).eq('phone_number', callerNumber);
             } catch (e) {
                 console.error("Failed to parse AI JSON:", e);
-                aiResponse = completion.choices[0].message.content; // fallback
+                aiResponse = responseText; // fallback
             }
 
             let shouldPause = false;
