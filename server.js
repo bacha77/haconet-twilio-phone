@@ -121,6 +121,55 @@ app.get('/api/media', (req, res) => {
     });
 });
 
+// --- DASHBOARD API: BROADCAST MESSAGING ---
+app.post('/api/broadcast', async (req, res) => {
+    const { message } = req.body;
+    if (!message) return res.status(400).send('Message is required');
+
+    try {
+        // Get all unique contacts
+        const { data: contacts, error } = await supabase.from('contacts').select('phone_number');
+        if (error) throw error;
+
+        let successCount = 0;
+        for (const contact of contacts) {
+            try {
+                await twilioClient.messages.create({
+                    body: message,
+                    from: process.env.TWILIO_PHONE_NUMBER,
+                    to: contact.phone_number
+                });
+                successCount++;
+                
+                // Also save the broadcast to the messages table so it shows in chat history
+                await supabase.from('messages').insert([{
+                    sender_number: contact.phone_number,
+                    body: message,
+                    direction: 'outbound'
+                }]);
+            } catch (err) {
+                console.error(`Failed to send broadcast to ${contact.phone_number}:`, err);
+            }
+        }
+        res.json({ success: true, sent: successCount, total: contacts.length });
+    } catch (e) {
+        res.status(500).send(e.message);
+    }
+});
+
+// --- DASHBOARD API: RESOLVE CONVERSATION ---
+app.post('/api/resolve', async (req, res) => {
+    const { phone_number } = req.body;
+    try {
+        await supabase.from('contacts')
+            .update({ status: 'resolved' })
+            .eq('phone_number', phone_number);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).send(e.message);
+    }
+});
+
 // --- DASHBOARD API: TOGGLE BOT ---
 app.post('/api/toggle-bot', async (req, res) => {
     const { to, bot_active } = req.body;
@@ -193,6 +242,17 @@ app.post('/whatsapp', async (req, res) => {
             media_url: mediaUrl,
             media_type: mediaType
         }]);
+
+        if (incomingMsg === 'stop') {
+            await setBotStatus(callerNumber, true); // re-enable bot if they say stop
+        }
+
+        // --- NEW: INBOX MANAGEMENT ---
+        // Update the contacts table to mark this person as 'unread' and record the time
+        await supabase.from('contacts').upsert(
+            { phone_number: callerNumber, status: 'unread', last_message_at: new Date().toISOString() },
+            { onConflict: 'phone_number' }
+        );
 
         // 2. Check if Bot is active for this user
         const { data: contact } = await supabase
