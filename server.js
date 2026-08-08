@@ -333,19 +333,36 @@ app.post('/whatsapp', async (req, res) => {
             
             const systemPrompt = `You are a helpful assistant for Haconet (Haitian Community Network) in Columbus, OH. 
 Your primary language is Haitian Creole. Always reply in Haitian Creole unless asked otherwise by the user. 
-You provide help with Immigration (TPS, Asylum, Court Cases) and English Classes (ESL). 
-If the user's question requires a human representative (e.g., they want to talk to someone, book an appointment, or you don't know the answer), reply politely in Creole and include the exact text "[PAUSE_BOT]" at the end of your message. This will trigger the human fallback. 
-Keep your responses short, concise, and friendly.`;
+You provide help with Immigration (TPS, Asylum, Court Cases), English Classes (ESL), Health, and Cultural events. 
+Analyze the user's message and assign them to one of the following departments: "Immigration", "ESL", "Health", "Cultural", or "General".
+If the user's question requires a human representative (e.g., they want to talk to someone, book an appointment, or you don't know the answer), reply politely in Creole and include the exact text "[PAUSE_BOT]" at the end of your reply.
+Keep your responses short, concise, and friendly.
+You MUST output your response in JSON format containing two keys: "reply" (your message) and "department" (the assigned department).`;
 
             formattedHistory.unshift({ role: 'system', content: systemPrompt });
             formattedHistory[formattedHistory.length - 1].content = aiUserMessage;
 
             const completion = await openai.chat.completions.create({
                 model: 'gpt-4o-mini',
-                messages: formattedHistory
+                messages: formattedHistory,
+                response_format: { type: "json_object" }
             });
 
-            let aiResponse = completion.choices[0].message.content;
+            let aiResponse = "Eskize m, mwen pa konprann. (Error)";
+            let aiDepartment = "General";
+            
+            try {
+                const aiData = JSON.parse(completion.choices[0].message.content);
+                aiResponse = aiData.reply;
+                aiDepartment = aiData.department || 'General';
+                
+                // Update the contact's department in the database
+                await supabase.from('contacts').update({ department: aiDepartment }).eq('phone_number', callerNumber);
+            } catch (e) {
+                console.error("Failed to parse AI JSON:", e);
+                aiResponse = completion.choices[0].message.content; // fallback
+            }
+
             let shouldPause = false;
             
             if (aiResponse.includes('[PAUSE_BOT]')) {
