@@ -116,26 +116,22 @@ async function sendSmsConfirmation(callerNumber) {
 // Helper to check if it's currently business hours (Mon-Fri, 9AM-5PM EST)
 function isBusinessHours() {
     try {
-        const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'America/New_York',
-            weekday: 'short',
-            hour: 'numeric',
-            hour12: false
-        });
-        const parts = formatter.formatToParts(new Date());
-        let weekday = '';
-        let hour = 0;
-        for (const part of parts) {
-            if (part.type === 'weekday') weekday = part.value;
-            if (part.type === 'hour') hour = parseInt(part.value, 10);
-        }
+        const now = new Date();
+        const month = now.getUTCMonth(); 
+        let offset = -5;
+        // Approximation for NY DST (March through October)
+        if (month >= 2 && month <= 10) offset = -4; 
         
-        if (weekday === 'Sat' || weekday === 'Sun') return false;
-        if (hour < 9 || hour >= 17) return false;
+        const nyTime = new Date(now.getTime() + (offset * 60 * 60 * 1000));
+        const day = nyTime.getUTCDay();
+        const hour = nyTime.getUTCHours();
+        
+        if (day === 0 || day === 6) return false; 
+        if (hour < 9 || hour >= 17) return false; 
         return true;
     } catch (e) {
         console.error("isBusinessHours error:", e);
-        return false; // Default to closed on error just in case
+        return false;
     }
 }
 
