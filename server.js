@@ -531,7 +531,7 @@ You MUST output your response in JSON format containing two keys: "reply" (your 
             }
             
             if (!isBusinessHours()) {
-                aiResponse = "🌙 *BIWO FÈMEN*\n*Biwo nou fèmen kounye a (Lendi-Vandredi 9AM-5PM). Nou ap reponn pwochen jou travay la.*\n---\n" + aiResponse;
+                aiResponse = "🌙 *BIWO FÈMEN*\n*Biwo nou fèmen kounye a (Lendi-Vandredi 9AM-5PM, Dimanch sou randevou). Nou ap reponn pwochen jou travay la.*\n---\n" + aiResponse;
             }
 
             twiml.message(aiResponse);
@@ -559,8 +559,8 @@ app.post('/voice', (req, res) => {
     
     if (!isBusinessHours()) {
         // After-hours Answering Machine
-        twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M. Please leave a message after the tone.');
-        twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Nous sommes ouverts du lundi au vendredi, de 9 heures du matin à 5 heures de l\'après-midi. Veuillez laisser un message après le bip sonore.');
+        twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M, and on Sunday by appointment only. Please leave a message after the tone.');
+        twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Nous sommes ouverts du lundi au vendredi, de 9 heures du matin à 5 heures de l\'après-midi, et le dimanche sur rendez-vous uniquement. Veuillez laisser un message après le bip sonore.');
         twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true, transcribeCallback: '/voicemail/transcription' });
     } else {
         // Normal Business Hours Menu
@@ -592,8 +592,8 @@ app.post('/menu/main', (req, res) => {
     const twiml = new VoiceResponse();
     
     if (!isBusinessHours()) {
-        twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M. Please leave a message after the tone.');
-        twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Nous sommes ouverts du lundi au vendredi, de 9 heures du matin à 5 heures de l\'après-midi. Veuillez laisser un message après le bip sonore.');
+        twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M, and on Sunday by appointment only. Please leave a message after the tone.');
+        twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Nous sommes ouverts du lundi au vendredi, de 9 heures du matin à 5 heures de l\'après-midi, et le dimanche sur rendez-vous uniquement. Veuillez laisser un message après le bip sonore.');
         twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true, transcribeCallback: '/voicemail/transcription' });
     } else {
         const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
