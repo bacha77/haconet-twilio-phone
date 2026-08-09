@@ -170,7 +170,7 @@ app.get('/api/media', (req, res) => {
 });
 
 // --- DASHBOARD API: BROADCAST MESSAGING ---
-app.post('/api/broadcast', async (req, res) => {
+app.all('/api/broadcast', async (req, res) => {
     const { message, sendAt, department } = req.body;
     if (!message) return res.status(400).send('Message is required');
 
@@ -224,7 +224,7 @@ app.post('/api/broadcast', async (req, res) => {
 });
 
 // --- DASHBOARD API: RESOLVE CONVERSATION ---
-app.post('/api/resolve', async (req, res) => {
+app.all('/api/resolve', async (req, res) => {
   const { phone_number } = req.body;
   if (!phone_number) return res.status(400).send('phone_number required');
   try {
@@ -237,7 +237,7 @@ app.post('/api/resolve', async (req, res) => {
 });
 
 // --- DASHBOARD API: ASSIGN CONVERSATION ---
-app.post('/api/assign', async (req, res) => {
+app.all('/api/assign', async (req, res) => {
     const { phone_number, assigned_to } = req.body;
     if (!phone_number || !assigned_to) return res.status(400).send('phone_number and assigned_to required');
     try {
@@ -266,7 +266,7 @@ app.post('/api/assign', async (req, res) => {
 });
 
 // Update CRM Profile (Name, Email, Notes, Address)
-app.post('/api/update-contact', async (req, res) => {
+app.all('/api/update-contact', async (req, res) => {
   const { phone_number, first_name, last_name, email, notes, address } = req.body;
   if (!phone_number) return res.status(400).send('phone_number required');
   try {
@@ -285,7 +285,7 @@ app.post('/api/update-contact', async (req, res) => {
 });
 
 // AI Translation Endpoint
-app.post('/api/translate', async (req, res) => {
+app.all('/api/translate', async (req, res) => {
   const { text, target } = req.body;
   if (!text) return res.status(400).send('text required');
   try {
@@ -304,7 +304,7 @@ app.post('/api/translate', async (req, res) => {
 });
 
 // --- DASHBOARD API: TOGGLE BOT ---
-app.post('/api/toggle-bot', async (req, res) => {
+app.all('/api/toggle-bot', async (req, res) => {
     const { to, bot_active } = req.body;
     if (!to) return res.status(400).json({ error: 'Missing phone number' });
     try {
@@ -347,7 +347,7 @@ app.get('/api/analytics', async (req, res) => {
 });
 
 // --- DASHBOARD API: SEND REPLIES ---
-app.post('/api/reply', upload.single('file'), async (req, res) => {
+app.all('/api/reply', upload.single('file'), async (req, res) => {
     const { to, body } = req.body;
     const file = req.file;
 
@@ -395,7 +395,7 @@ app.post('/api/reply', upload.single('file'), async (req, res) => {
 
 
 // --- WHATSAPP & SMS CHATBOT ROUTE ---
-app.post('/whatsapp', async (req, res) => {
+app.all('/whatsapp', async (req, res) => {
     const twiml = new MessagingResponse();
     const incomingMsgRaw = req.body.Body || '';
     const incomingMsg = incomingMsgRaw.trim().toLowerCase();
@@ -558,7 +558,7 @@ You MUST output your response in JSON format containing two keys: "reply" (your 
 });
 
 
-app.post('/voice', (req, res) => {
+app.all('/voice', (req, res) => {
     const twiml = new VoiceResponse();
     
     if (!isBusinessHours()) {
@@ -578,7 +578,7 @@ app.post('/voice', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/language', (req, res) => {
+app.all('/language', (req, res) => {
     const twiml = new VoiceResponse();
     if (req.body.Digits === '1') {
         twiml.redirect('/menu/en');
@@ -592,7 +592,7 @@ app.post('/language', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/menu/main', (req, res) => {
+app.all('/menu/main', (req, res) => {
     const twiml = new VoiceResponse();
     
     if (!isBusinessHours()) {
@@ -610,7 +610,7 @@ app.post('/menu/main', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/gather/main', (req, res) => {
+app.all('/gather/main', (req, res) => {
     const twiml = new VoiceResponse();
     if (req.body.Digits === '1') {
         twiml.redirect('/menu/en');
@@ -624,7 +624,7 @@ app.post('/gather/main', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/menu/en', (req, res) => {
+app.all('/menu/en', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/en', method: 'POST' });
     gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our E S L Program, press 2. For Cultural, press 3. For Social Services, press 4. For any other questions, press 5.');
@@ -633,7 +633,7 @@ app.post('/menu/en', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/gather/en', (req, res) => {
+app.all('/gather/en', (req, res) => {
     const twiml = new VoiceResponse();
     let department = 'General';
     let forwardNumber = '+16143708248';
@@ -696,7 +696,7 @@ app.post('/gather/en', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/outbound-status', async (req, res) => {
+app.all('/outbound-status', async (req, res) => {
     const callStatus = req.body.CallStatus;
     const inboundCallSid = req.query.inboundCallSid;
     const department = req.query.dept || 'General';
@@ -714,7 +714,7 @@ app.post('/outbound-status', async (req, res) => {
     res.sendStatus(200);
 });
 
-app.post('/hold-music', (req, res) => {
+app.all('/hold-music', (req, res) => {
     const twiml = new VoiceResponse();
     const host = req.get('host');
     const protocol = host.includes('localhost') ? 'http' : 'https';
@@ -724,7 +724,7 @@ app.post('/hold-music', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/inbound-conference-status', async (req, res) => {
+app.all('/inbound-conference-status', async (req, res) => {
     if (req.body.StatusCallbackEvent === 'participant-leave') {
         const inboundCallSid = req.body.CallSid;
         const outboundCallSid = outboundCalls[inboundCallSid];
@@ -738,7 +738,7 @@ app.post('/inbound-conference-status', async (req, res) => {
     res.sendStatus(200);
 });
 
-app.post('/dial-fallback/en', (req, res) => {
+app.all('/dial-fallback/en', (req, res) => {
     const twiml = new VoiceResponse();
     const dialStatus = req.body.DialCallStatus;
     const department = req.query.dept || 'General';
@@ -753,7 +753,7 @@ app.post('/dial-fallback/en', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/voicemail/en', async (req, res) => {
+app.all('/voicemail/en', async (req, res) => {
     const twiml = new VoiceResponse();
     const recordingUrl = req.body.RecordingUrl;
     const rawCallerNumber = req.body.From;
@@ -789,7 +789,7 @@ app.post('/voicemail/en', async (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/menu/fr', (req, res) => {
+app.all('/menu/fr', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
     gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service d\'immigration, tapez 1. Pour notre programme d\'anglais, tapez 2. Pour le service culturel, tapez 3. Pour les services sociaux, tapez 4. Pour toute autre demande, tapez 5.');
@@ -798,7 +798,7 @@ app.post('/menu/fr', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/gather/fr', (req, res) => {
+app.all('/gather/fr', (req, res) => {
     const twiml = new VoiceResponse();
     let department = 'General';
     let forwardNumber = '+16143708248';
@@ -861,7 +861,7 @@ app.post('/gather/fr', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/dial-fallback/fr', (req, res) => {
+app.all('/dial-fallback/fr', (req, res) => {
     const twiml = new VoiceResponse();
     const dialStatus = req.body.DialCallStatus;
     const department = req.query.dept || 'General';
@@ -876,7 +876,7 @@ app.post('/dial-fallback/fr', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/voicemail/fr', async (req, res) => {
+app.all('/voicemail/fr', async (req, res) => {
     const twiml = new VoiceResponse();
     const recordingUrl = req.body.RecordingUrl;
     const rawCallerNumber = req.body.From;
@@ -916,7 +916,7 @@ app.post('/voicemail/fr', async (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/voicemail/transcription', async (req, res) => {
+app.all('/voicemail/transcription', async (req, res) => {
     const recordingUrl = req.body.RecordingUrl;
     const transcriptionText = req.body.TranscriptionText;
     const transcriptionStatus = req.body.TranscriptionStatus;
