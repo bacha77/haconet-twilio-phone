@@ -115,15 +115,28 @@ async function sendSmsConfirmation(callerNumber) {
 
 // Helper to check if it's currently business hours (Mon-Fri, 9AM-5PM EST)
 function isBusinessHours() {
-    const nyTimeString = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
-    const nyDate = new Date(nyTimeString);
-    
-    const day = nyDate.getDay(); // 0 = Sunday, 6 = Saturday
-    const hour = nyDate.getHours(); // 0-23
-    
-    if (day === 0 || day === 6) return false;
-    if (hour < 9 || hour >= 17) return false;
-    return true;
+    try {
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York',
+            weekday: 'short',
+            hour: 'numeric',
+            hour12: false
+        });
+        const parts = formatter.formatToParts(new Date());
+        let weekday = '';
+        let hour = 0;
+        for (const part of parts) {
+            if (part.type === 'weekday') weekday = part.value;
+            if (part.type === 'hour') hour = parseInt(part.value, 10);
+        }
+        
+        if (weekday === 'Sat' || weekday === 'Sun') return false;
+        if (hour < 9 || hour >= 17) return false;
+        return true;
+    } catch (e) {
+        console.error("isBusinessHours error:", e);
+        return false; // Default to closed on error just in case
+    }
 }
 
 // Helper to pause bot for a specific number
