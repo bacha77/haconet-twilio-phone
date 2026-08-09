@@ -62,6 +62,8 @@ const VoiceResponse = twilio.twiml.VoiceResponse;
 const MessagingResponse = twilio.twiml.MessagingResponse;
 const PORT = process.env.PORT || 3000;
 
+const outboundCalls = {};
+
 // Config variables
 const IMMIGRATION_NUMBER = process.env.IMMIGRATION_NUMBER || '+1234567890';
 const ESL_NUMBER = process.env.ESL_NUMBER || '+0987654321';
@@ -661,7 +663,63 @@ app.post('/gather/en', (req, res) => {
     }
     
     twiml.say({ voice: 'Polly.Joanna' }, `Please hold while we connect you to the ${department} department.`);
-    twiml.dial({ timeout: 20, action: `/dial-fallback/en?dept=${encodeURIComponent(department)}`, method: 'POST' }, forwardNumber);
+    const inboundCallSid = req.body.CallSid;
+    const twilioNumber = req.body.To;
+    const host = req.get('host');
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    twilioClient.calls.create({
+        to: forwardNumber,
+        from: twilioNumber,
+        twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
+        statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=en`,
+        statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
+        timeout: 120
+    }).then(call => {
+        outboundCalls[inboundCallSid] = call.sid;
+    }).catch(e => console.error("Outbound Call Error:", e));
+
+    const dial = twiml.dial({ action: '/inbound-conference-end' });
+    dial.conference({
+        waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical',
+        startConferenceOnEnter: false,
+        endConferenceOnExit: true
+    }, `conf_${inboundCallSid}`);
+    
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
+app.post('/outbound-status', async (req, res) => {
+    const callStatus = req.body.CallStatus;
+    const inboundCallSid = req.query.inboundCallSid;
+    const department = req.query.dept || 'General';
+    const lang = req.query.lang || 'en';
+
+    if (['no-answer', 'canceled', 'failed', 'busy'].includes(callStatus)) {
+        try {
+            await twilioClient.calls(inboundCallSid).update({
+                twiml: `<Response><Redirect method="POST">/dial-fallback/${lang}?dept=${encodeURIComponent(department)}</Redirect></Response>`
+            });
+        } catch (e) {
+            console.error("Failed to update inbound call:", e);
+        }
+    }
+    res.sendStatus(200);
+});
+
+app.post('/inbound-conference-end', async (req, res) => {
+    const twiml = new VoiceResponse();
+    const inboundCallSid = req.body.CallSid;
+    const outboundCallSid = outboundCalls[inboundCallSid];
+    if (outboundCallSid) {
+        try {
+            await twilioClient.calls(outboundCallSid).update({ status: 'canceled' });
+        } catch(e) {}
+        delete outboundCalls[inboundCallSid];
+    }
+    twiml.hangup();
     res.type('text/xml');
     res.send(twiml.toString());
 });
@@ -758,7 +816,30 @@ app.post('/gather/fr', (req, res) => {
     }
     
     twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, `Veuillez patienter pendant que nous vous connectons au département ${department}.`);
-    twiml.dial({ timeout: 20, action: `/dial-fallback/fr?dept=${encodeURIComponent(department)}`, method: 'POST' }, forwardNumber);
+    const inboundCallSid = req.body.CallSid;
+    const twilioNumber = req.body.To;
+    const host = req.get('host');
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    twilioClient.calls.create({
+        to: forwardNumber,
+        from: twilioNumber,
+        twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
+        statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr`,
+        statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
+        timeout: 120
+    }).then(call => {
+        outboundCalls[inboundCallSid] = call.sid;
+    }).catch(e => console.error("Outbound Call Error:", e));
+
+    const dial = twiml.dial({ action: '/inbound-conference-end' });
+    dial.conference({
+        waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical',
+        startConferenceOnEnter: false,
+        endConferenceOnExit: true
+    }, `conf_${inboundCallSid}`);
+
     res.type('text/xml');
     res.send(twiml.toString());
 });
