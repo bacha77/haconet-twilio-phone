@@ -526,7 +526,7 @@ app.post('/gather/main', (req, res) => {
 app.post('/menu/en', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/en', method: 'POST' });
-    gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our E S L Program, press 2. For Health, press 3. For any other questions, press 4.');
+    gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our E S L Program, press 2. For Health, press 3. For Social Services, press 4. For any other questions, press 5.');
     twiml.redirect('/menu/en');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -546,6 +546,9 @@ app.post('/gather/en', (req, res) => {
             department = 'Health';
             break;
         case '4':
+            department = 'Social Services';
+            break;
+        case '5':
             department = 'General';
             break;
         default:
@@ -599,7 +602,7 @@ app.post('/voicemail/en', async (req, res) => {
 app.post('/menu/fr', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
-    gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service d\'immigration, tapez 1. Pour notre programme d\'anglais, tapez 2. Pour le service de santé, tapez 3. Pour toute autre demande, tapez 4.');
+    gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service d\'immigration, tapez 1. Pour notre programme d\'anglais, tapez 2. Pour le service de santé, tapez 3. Pour les services sociaux, tapez 4. Pour toute autre demande, tapez 5.');
     twiml.redirect('/menu/fr');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -619,6 +622,9 @@ app.post('/gather/fr', (req, res) => {
             department = 'Health';
             break;
         case '4':
+            department = 'Social Services';
+            break;
+        case '5':
             department = 'General';
             break;
         default:
