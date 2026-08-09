@@ -114,26 +114,14 @@ async function sendSmsConfirmation(callerNumber) {
 
 // Helper to check if it's currently business hours (Mon-Fri, 9AM-5PM EST)
 function isBusinessHours() {
-    const now = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/New_York',
-        hour: 'numeric',
-        hour12: false,
-        weekday: 'short'
-    });
+    const nyTimeString = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+    const nyDate = new Date(nyTimeString);
     
-    const parts = formatter.formatToParts(now);
-    let hour = 0;
-    let weekday = '';
+    const day = nyDate.getDay(); // 0 = Sunday, 6 = Saturday
+    const hour = nyDate.getHours(); // 0-23
     
-    for (const part of parts) {
-        if (part.type === 'hour') hour = parseInt(part.value, 10);
-        if (part.type === 'weekday') weekday = part.value;
-    }
-    
-    if (weekday === 'Sat' || weekday === 'Sun') return false;
+    if (day === 0 || day === 6) return false;
     if (hour < 9 || hour >= 17) return false;
-    
     return true;
 }
 
@@ -566,7 +554,7 @@ app.post('/gather/en', (req, res) => {
             return res.type('text/xml').send(twiml.toString());
     }
     
-    twiml.say({ voice: 'Polly.Joanna' }, 'Please leave a message after the beep.');
+    twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our business hours are Monday to Friday, 9 A M to 5 P M. All representatives are currently busy. Please leave a message after the beep.');
     twiml.record({ action: `/voicemail/en?dept=${department}`, maxLength: 60 });
     res.type('text/xml');
     res.send(twiml.toString());
@@ -639,7 +627,7 @@ app.post('/gather/fr', (req, res) => {
             return res.type('text/xml').send(twiml.toString());
     }
     
-    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Veuillez laisser votre message après le bip sonore.');
+    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Nos heures d\'ouverture sont du lundi au vendredi, de 9 heures à 17 heures. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.');
     twiml.record({ action: `/voicemail/fr?dept=${department}`, maxLength: 60 });
     res.type('text/xml');
     res.send(twiml.toString());
