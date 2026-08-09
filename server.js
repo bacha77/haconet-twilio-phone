@@ -574,10 +574,18 @@ app.post('/language', (req, res) => {
 
 app.post('/menu/main', (req, res) => {
     const twiml = new VoiceResponse();
-    const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
-    gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. Thank you for calling us today. We are happy to assist you! For English, please press 1.');
-    gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Bienvenue chez Haconet. Merci de votre appel. Pour continuer en français, tapez 2.');
-    twiml.redirect('/menu/main');
+    
+    if (!isBusinessHours()) {
+        twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M. Please leave a message after the tone.');
+        twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Nous sommes ouverts du lundi au vendredi, de 9 heures du matin à 5 heures de l\'après-midi. Veuillez laisser un message après le bip sonore.');
+        twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true, transcribeCallback: '/voicemail/transcription' });
+    } else {
+        const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
+        gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. Thank you for calling us today. We are happy to assist you! For English, please press 1.');
+        gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Bienvenue chez Haconet. Merci de votre appel. Pour continuer en français, tapez 2.');
+        twiml.redirect('/menu/main');
+    }
+    
     res.type('text/xml');
     res.send(twiml.toString());
 });
