@@ -119,7 +119,7 @@ async function sendSmsConfirmation(callerNumber) {
 function isBusinessHours() {
     try {
         const now = new Date();
-        if (now.getTime() < 1786305748148) return true; // Temporarily open for 30 minutes for testing
+        if (now.getTime() < 1786314366464) return true; // Temporarily open for testing
 
         const month = now.getUTCMonth(); 
         let offset = -5;
