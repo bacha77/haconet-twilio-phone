@@ -8,6 +8,7 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const multer = require('multer');
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -16,6 +17,23 @@ const app = express();
 app.use(cors());
 app.use(express.json()); 
 app.use(urlencoded({ extended: false }));
+app.use(express.static('public'));
+
+const upload = multer({ 
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => {
+            const dir = path.join(__dirname, 'public', 'uploads');
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+            cb(null, dir);
+        },
+        filename: (req, file, cb) => {
+            const ext = path.extname(file.originalname);
+            cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + ext);
+        }
+    })
+});
 
 async function downloadTwilioMedia(mediaUrl) {
     return new Promise((resolve, reject) => {
@@ -249,31 +267,48 @@ app.post('/api/toggle-bot', async (req, res) => {
 });
 
 // --- DASHBOARD API: SEND REPLIES ---
-app.post('/api/reply', async (req, res) => {
+app.post('/api/reply', upload.single('file'), async (req, res) => {
     const { to, body } = req.body;
-    if (!to || !body) return res.status(400).json({ error: 'Missing "to" or "body"' });
+    const file = req.file;
+
+    if (!to || (!body && !file)) return res.status(400).json({ error: 'Missing "to" or content' });
 
     try {
-        // Send message via Twilio
-        await twilioClient.messages.create({
-            body: body,
+        let mediaUrl = undefined;
+        let twilioOpts = {
             from: to.startsWith('whatsapp:') ? `whatsapp:${TWILIO_PHONE_NUMBER}` : TWILIO_PHONE_NUMBER,
             to: to
-        });
+        };
+        
+        if (body) {
+            twilioOpts.body = body;
+        }
+
+        if (file) {
+            const host = req.get('host');
+            const protocol = host.includes('localhost') ? 'http' : 'https';
+            mediaUrl = `${protocol}://${host}/uploads/${file.filename}`;
+            twilioOpts.mediaUrl = [mediaUrl];
+        }
+
+        // Send message via Twilio
+        await twilioClient.messages.create(twilioOpts);
 
         if (supabase) {
             // Save outbound message
             await supabase.from('messages').insert([{
                 sender_number: to,
-                body: body,
+                body: body || '[Attachment Only]',
+                media_url: mediaUrl,
                 direction: 'outbound'
             }]);
             
             // Auto-pause bot when a human replies!
             await setBotStatus(to, false);
         }
-        res.json({ success: true });
+        res.json({ success: true, mediaUrl });
     } catch (error) {
+        console.error('Reply Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
