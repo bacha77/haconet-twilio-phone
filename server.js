@@ -684,7 +684,8 @@ app.post('/gather/en', (req, res) => {
 
     const dial = twiml.dial({ action: '/inbound-conference-end' });
     dial.conference({
-        waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical',
+        waitUrl: baseUrl + '/hold-music',
+        waitMethod: 'POST',
         startConferenceOnEnter: false,
         endConferenceOnExit: true
     }, `conf_${inboundCallSid}`);
@@ -837,7 +838,8 @@ app.post('/gather/fr', (req, res) => {
 
     const dial = twiml.dial({ action: '/inbound-conference-end' });
     dial.conference({
-        waitUrl: 'http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical',
+        waitUrl: baseUrl + '/hold-music',
+        waitMethod: 'POST',
         startConferenceOnEnter: false,
         endConferenceOnExit: true
     }, `conf_${inboundCallSid}`);
