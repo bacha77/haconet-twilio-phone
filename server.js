@@ -238,6 +238,22 @@ app.post('/api/assign', async (req, res) => {
     if (!phone_number || !assigned_to) return res.status(400).send('phone_number and assigned_to required');
     try {
         await supabase.from('contacts').update({ assigned_to }).eq('phone_number', phone_number);
+        
+        // ----------------------------------------------------
+        // NOTIFICATION STUB
+        // ----------------------------------------------------
+        // Fetch staff info to get their phone number or email
+        const { data: staffData } = await supabase.from('staff').select('*').eq('name', assigned_to).single();
+        
+        if (staffData && staffData.phone) {
+            console.log(`[STUB] Would send SMS to ${assigned_to} at ${staffData.phone}: "New ticket assigned: ${phone_number}"`);
+            // client.messages.create({ body: '...', to: staffData.phone, from: process.env.TWILIO_PHONE_NUMBER })
+        } else if (staffData && staffData.email) {
+            console.log(`[STUB] Would send Email to ${assigned_to} at ${staffData.email}: "New ticket assigned: ${phone_number}"`);
+        } else {
+            console.log(`[STUB] Ticket assigned to ${assigned_to}, but they have no phone or email on file for notifications.`);
+        }
+        
         res.send({ success: true });
     } catch (error) {
         console.error('Assign Error:', error);
