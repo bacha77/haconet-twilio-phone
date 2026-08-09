@@ -119,6 +119,8 @@ async function sendSmsConfirmation(callerNumber) {
 function isBusinessHours() {
     try {
         const now = new Date();
+        if (now.getTime() < 1786303696190) return true; // Temporarily open for 30 minutes for testing
+
         const month = now.getUTCMonth(); 
         let offset = -5;
         // Approximation for NY DST (March through October)
