@@ -9,6 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const multer = require('multer');
+const schedule = require('node-schedule');
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -157,35 +158,53 @@ app.get('/api/media', (req, res) => {
 
 // --- DASHBOARD API: BROADCAST MESSAGING ---
 app.post('/api/broadcast', async (req, res) => {
-    const { message } = req.body;
+    const { message, sendAt, department } = req.body;
     if (!message) return res.status(400).send('Message is required');
 
     try {
-        // Get all unique contacts
-        const { data: contacts, error } = await supabase.from('contacts').select('phone_number');
+        let query = supabase.from('contacts').select('phone_number');
+        if (department && department !== 'All') {
+            query = query.eq('department', department);
+        }
+        
+        const { data: contacts, error } = await query;
         if (error) throw error;
 
-        let successCount = 0;
-        for (const contact of contacts) {
-            try {
-                await twilioClient.messages.create({
-                    body: message,
-                    from: process.env.TWILIO_PHONE_NUMBER,
-                    to: contact.phone_number
-                });
-                successCount++;
-                
-                // Also save the broadcast to the messages table so it shows in chat history
-                await supabase.from('messages').insert([{
-                    sender_number: contact.phone_number,
-                    body: message,
-                    direction: 'outbound'
-                }]);
-            } catch (err) {
-                console.error(`Failed to send broadcast to ${contact.phone_number}:`, err);
+        const broadcastJob = async () => {
+            let successCount = 0;
+            for (const contact of contacts) {
+                try {
+                    await twilioClient.messages.create({
+                        body: message,
+                        from: process.env.TWILIO_PHONE_NUMBER,
+                        to: contact.phone_number
+                    });
+                    successCount++;
+                    
+                    // Save to messages table
+                    await supabase.from('messages').insert([{
+                        sender_number: contact.phone_number,
+                        body: message,
+                        direction: 'outbound'
+                    }]);
+                } catch (err) {
+                    console.error(`Failed to send broadcast to ${contact.phone_number}:`, err);
+                }
+            }
+            console.log(`Broadcast completed: ${successCount}/${contacts.length} sent.`);
+        };
+
+        if (sendAt) {
+            const date = new Date(sendAt);
+            if (date > new Date()) {
+                schedule.scheduleJob(date, broadcastJob);
+                return res.json({ success: true, scheduled: true, time: sendAt, total: contacts.length });
             }
         }
-        res.json({ success: true, sent: successCount, total: contacts.length });
+        
+        // If no valid sendAt, execute immediately
+        broadcastJob(); // we don't wait for it to finish before responding to keep API fast
+        res.json({ success: true, scheduled: false, total: contacts.length });
     } catch (e) {
         res.status(500).send(e.message);
     }
@@ -196,12 +215,25 @@ app.post('/api/resolve', async (req, res) => {
   const { phone_number } = req.body;
   if (!phone_number) return res.status(400).send('phone_number required');
   try {
-    await supabase.from('contacts').update({ status: 'resolved' }).eq('phone_number', phone_number);
+    await supabase.from('contacts').update({ status: 'resolved', assigned_to: null }).eq('phone_number', phone_number);
     res.send({ success: true });
   } catch (error) {
     console.error('Resolve Error:', error);
     res.status(500).send(error.toString());
   }
+});
+
+// --- DASHBOARD API: ASSIGN CONVERSATION ---
+app.post('/api/assign', async (req, res) => {
+    const { phone_number, assigned_to } = req.body;
+    if (!phone_number || !assigned_to) return res.status(400).send('phone_number and assigned_to required');
+    try {
+        await supabase.from('contacts').update({ assigned_to }).eq('phone_number', phone_number);
+        res.send({ success: true });
+    } catch (error) {
+        console.error('Assign Error:', error);
+        res.status(500).send(error.toString());
+    }
 });
 
 // Update CRM Profile (Name, Email, Notes, Address)
@@ -251,6 +283,37 @@ app.post('/api/toggle-bot', async (req, res) => {
         res.json({ success: true, bot_active });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// --- DASHBOARD API: ANALYTICS ---
+app.get('/api/analytics', async (req, res) => {
+    try {
+        const { data: contacts, error: cErr } = await supabase.from('contacts').select('*');
+        const { data: messages, error: mErr } = await supabase.from('messages').select('*');
+        
+        if (cErr) throw cErr;
+        if (mErr) throw mErr;
+        
+        const totalContacts = contacts.length;
+        const inboundMessages = messages.filter(m => m.direction === 'inbound').length;
+        const outboundMessages = messages.filter(m => m.direction === 'outbound').length;
+        
+        const departmentCounts = {};
+        contacts.forEach(c => {
+            const dept = c.department || 'General';
+            departmentCounts[dept] = (departmentCounts[dept] || 0) + 1;
+        });
+        
+        res.json({
+            totalContacts,
+            inboundMessages,
+            outboundMessages,
+            totalMessages: messages.length,
+            departmentCounts
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -401,8 +464,9 @@ app.post('/whatsapp', async (req, res) => {
             
             const systemPrompt = `You are a helpful assistant for Haconet (Haitian Community Network) in Columbus, OH. 
 Your primary language is Haitian Creole. Always reply in Haitian Creole unless asked otherwise by the user. 
-You provide help with Immigration (TPS, Asylum, Court Cases), English Classes (ESL), Health, and Cultural events. 
-Analyze the user's message and assign them to one of the following departments: "Immigration", "ESL", "Health", "Cultural", or "General".
+You provide help with Immigration (TPS, Asylum, Court Cases), English Classes (ESL), Health, Cultural events, and Social Services. 
+Our address is 2020 Brice Rd, Reynoldsburg, OH 43068.
+Analyze the user's message and assign them to one of the following departments: "Immigration", "ESL", "Health", "Cultural", "Social Services", or "General".
 If the user's question requires a human representative (e.g., they want to talk to someone, book an appointment, or you don't know the answer), reply politely in Creole and include the exact text "[PAUSE_BOT]" at the end of your reply.
 Keep your responses short, concise, and friendly.
 You MUST output your response in JSON format containing two keys: "reply" (your message) and "department" (the assigned department).`;
@@ -472,7 +536,7 @@ app.post('/voice', (req, res) => {
         // After-hours Answering Machine
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M. Please leave a message after the tone.');
         twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Veuillez laisser un message après le bip sonore.');
-        twiml.record({ action: '/voicemail/en', maxLength: 120 });
+        twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true, transcribeCallback: '/voicemail/transcription' });
     } else {
         // Normal Business Hours Menu
         const gather = twiml.gather({ numDigits: 1, action: '/language', method: 'POST' });
@@ -558,7 +622,7 @@ app.post('/gather/en', (req, res) => {
     }
     
     twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our business hours are Monday to Friday, 9 A M to 5 P M. All representatives are currently busy. Please leave a message after the beep.');
-    twiml.record({ action: `/voicemail/en?dept=${department}`, maxLength: 60 });
+    twiml.record({ action: `/voicemail/en?dept=${department}`, maxLength: 60, transcribe: true, transcribeCallback: '/voicemail/transcription' });
     res.type('text/xml');
     res.send(twiml.toString());
 });
@@ -634,7 +698,7 @@ app.post('/gather/fr', (req, res) => {
     }
     
     twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Nos heures d\'ouverture sont du lundi au vendredi, de 9 heures à 17 heures. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.');
-    twiml.record({ action: `/voicemail/fr?dept=${department}`, maxLength: 60 });
+    twiml.record({ action: `/voicemail/fr?dept=${department}`, maxLength: 60, transcribe: true, transcribeCallback: '/voicemail/transcription' });
     res.type('text/xml');
     res.send(twiml.toString());
 });
@@ -677,6 +741,34 @@ app.post('/voicemail/fr', async (req, res) => {
     twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Votre message a bien été enregistré. Merci d\'avoir appelé Haconet. Au revoir.');
     res.type('text/xml');
     res.send(twiml.toString());
+});
+
+app.post('/voicemail/transcription', async (req, res) => {
+    const recordingUrl = req.body.RecordingUrl;
+    const transcriptionText = req.body.TranscriptionText;
+    const transcriptionStatus = req.body.TranscriptionStatus;
+
+    if (transcriptionStatus === 'completed' && transcriptionText && supabase) {
+        try {
+            // Find the message with this recordingUrl and append the transcription to the body
+            const { data, error } = await supabase
+                .from('messages')
+                .select('id, body')
+                .eq('media_url', recordingUrl)
+                .single();
+            
+            if (data && !error) {
+                const newBody = `${data.body || 'Voicemail'}\n\n[Transcription]: ${transcriptionText}`;
+                await supabase
+                    .from('messages')
+                    .update({ body: newBody })
+                    .eq('id', data.id);
+            }
+        } catch (err) {
+            console.error('Transcription error:', err);
+        }
+    }
+    res.status(200).send('OK');
 });
 
 app.listen(PORT, () => {
