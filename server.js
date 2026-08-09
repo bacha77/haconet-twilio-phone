@@ -682,12 +682,14 @@ app.post('/gather/en', (req, res) => {
         outboundCalls[inboundCallSid] = call.sid;
     }).catch(e => console.error("Outbound Call Error:", e));
 
-    const dial = twiml.dial({ action: '/inbound-conference-end' });
+    const dial = twiml.dial();
     dial.conference({
         waitUrl: baseUrl + '/hold-music',
         waitMethod: 'POST',
         startConferenceOnEnter: false,
-        endConferenceOnExit: true
+        endConferenceOnExit: true,
+        statusCallback: baseUrl + '/inbound-conference-status',
+        statusCallbackEvent: 'leave'
     }, `conf_${inboundCallSid}`);
     
     res.type('text/xml');
@@ -706,7 +708,7 @@ app.post('/outbound-status', async (req, res) => {
                 twiml: `<Response><Redirect method="POST">/dial-fallback/${lang}?dept=${encodeURIComponent(department)}</Redirect></Response>`
             });
         } catch (e) {
-            console.error("Failed to update inbound call:", e);
+            console.log("Inbound caller already hung up (expected).");
         }
     }
     res.sendStatus(200);
@@ -722,19 +724,18 @@ app.post('/hold-music', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.post('/inbound-conference-end', async (req, res) => {
-    const twiml = new VoiceResponse();
-    const inboundCallSid = req.body.CallSid;
-    const outboundCallSid = outboundCalls[inboundCallSid];
-    if (outboundCallSid) {
-        try {
-            await twilioClient.calls(outboundCallSid).update({ status: 'canceled' });
-        } catch(e) {}
-        delete outboundCalls[inboundCallSid];
+app.post('/inbound-conference-status', async (req, res) => {
+    if (req.body.StatusCallbackEvent === 'participant-leave') {
+        const inboundCallSid = req.body.CallSid;
+        const outboundCallSid = outboundCalls[inboundCallSid];
+        if (outboundCallSid) {
+            try {
+                await twilioClient.calls(outboundCallSid).update({ status: 'canceled' });
+            } catch(e) {}
+            delete outboundCalls[inboundCallSid];
+        }
     }
-    twiml.hangup();
-    res.type('text/xml');
-    res.send(twiml.toString());
+    res.sendStatus(200);
 });
 
 app.post('/dial-fallback/en', (req, res) => {
@@ -846,12 +847,14 @@ app.post('/gather/fr', (req, res) => {
         outboundCalls[inboundCallSid] = call.sid;
     }).catch(e => console.error("Outbound Call Error:", e));
 
-    const dial = twiml.dial({ action: '/inbound-conference-end' });
+    const dial = twiml.dial();
     dial.conference({
         waitUrl: baseUrl + '/hold-music',
         waitMethod: 'POST',
         startConferenceOnEnter: false,
-        endConferenceOnExit: true
+        endConferenceOnExit: true,
+        statusCallback: baseUrl + '/inbound-conference-status',
+        statusCallbackEvent: 'leave'
     }, `conf_${inboundCallSid}`);
 
     res.type('text/xml');
