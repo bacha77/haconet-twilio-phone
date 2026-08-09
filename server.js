@@ -514,11 +514,13 @@ app.post('/gather/en', (req, res) => {
     let department = 'General';
     switch (req.body.Digits) {
         case '1':
-            department = 'Immigration';
-            break;
+            twiml.say({ voice: 'Polly.Joanna' }, 'You have reached the Immigration department. Please wait while we connect you to a representative.');
+            twiml.dial(IMMIGRATION_NUMBER);
+            return res.type('text/xml').send(twiml.toString());
         case '2':
-            department = 'ESL';
-            break;
+            twiml.say({ voice: 'Polly.Joanna' }, 'You have reached the E S L Program. Please wait while we connect you to an instructor.');
+            twiml.dial(ESL_NUMBER);
+            return res.type('text/xml').send(twiml.toString());
         case '3':
             department = 'Health';
             break;
@@ -587,11 +589,13 @@ app.post('/gather/fr', (req, res) => {
     let department = 'General';
     switch (req.body.Digits) {
         case '1':
-            department = 'Immigration';
-            break;
+            twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Vous avez joint le département d\'immigration. Veuillez patienter pendant que nous vous mettons en communication.');
+            twiml.dial(IMMIGRATION_NUMBER);
+            return res.type('text/xml').send(twiml.toString());
         case '2':
-            department = 'ESL';
-            break;
+            twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Vous avez joint le programme d\'anglais. Veuillez patienter.');
+            twiml.dial(ESL_NUMBER);
+            return res.type('text/xml').send(twiml.toString());
         case '3':
             department = 'Health';
             break;
