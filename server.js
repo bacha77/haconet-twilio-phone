@@ -623,7 +623,7 @@ app.post('/gather/main', (req, res) => {
 app.post('/menu/en', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/en', method: 'POST' });
-    gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our E S L Program, press 2. For Health, press 3. For Social Services, press 4. For any other questions, press 5.');
+    gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our E S L Program, press 2. For Cultural, press 3. For Social Services, press 4. For any other questions, press 5.');
     twiml.redirect('/menu/en');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -632,21 +632,27 @@ app.post('/menu/en', (req, res) => {
 app.post('/gather/en', (req, res) => {
     const twiml = new VoiceResponse();
     let department = 'General';
+    let forwardNumber = '+16143708248';
     switch (req.body.Digits) {
         case '1':
             department = 'Immigration';
+            forwardNumber = '+19378564921';
             break;
         case '2':
             department = 'ESL';
+            forwardNumber = '+16142549407';
             break;
         case '3':
-            department = 'Health';
+            department = 'Cultural';
+            forwardNumber = '+15619311029';
             break;
         case '4':
             department = 'Social Services';
+            forwardNumber = '+13476783686';
             break;
         case '5':
             department = 'General';
+            forwardNumber = '+16143708248';
             break;
         default:
             twiml.say({ voice: 'Polly.Joanna' }, 'Sorry, I don\'t understand that choice.');
@@ -654,8 +660,23 @@ app.post('/gather/en', (req, res) => {
             return res.type('text/xml').send(twiml.toString());
     }
     
-    twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. All of our representatives are currently busy. Please leave a message after the beep.');
-    twiml.record({ action: `/voicemail/en?dept=${department}`, maxLength: 60, transcribe: true, transcribeCallback: '/voicemail/transcription' });
+    twiml.say({ voice: 'Polly.Joanna' }, `Please hold while we connect you to the ${department} department.`);
+    twiml.dial({ timeout: 20, action: `/dial-fallback/en?dept=${encodeURIComponent(department)}`, method: 'POST' }, forwardNumber);
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
+app.post('/dial-fallback/en', (req, res) => {
+    const twiml = new VoiceResponse();
+    const dialStatus = req.body.DialCallStatus;
+    const department = req.query.dept || 'General';
+
+    if (dialStatus === 'completed' || dialStatus === 'answered') {
+        twiml.hangup();
+    } else {
+        twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. All of our representatives are currently busy. Please leave a message after the beep.');
+        twiml.record({ action: `/voicemail/en?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true, transcribeCallback: '/voicemail/transcription' });
+    }
     res.type('text/xml');
     res.send(twiml.toString());
 });
@@ -699,7 +720,7 @@ app.post('/voicemail/en', async (req, res) => {
 app.post('/menu/fr', (req, res) => {
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
-    gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service d\'immigration, tapez 1. Pour notre programme d\'anglais, tapez 2. Pour le service de santé, tapez 3. Pour les services sociaux, tapez 4. Pour toute autre demande, tapez 5.');
+    gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service d\'immigration, tapez 1. Pour notre programme d\'anglais, tapez 2. Pour le service culturel, tapez 3. Pour les services sociaux, tapez 4. Pour toute autre demande, tapez 5.');
     twiml.redirect('/menu/fr');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -708,21 +729,27 @@ app.post('/menu/fr', (req, res) => {
 app.post('/gather/fr', (req, res) => {
     const twiml = new VoiceResponse();
     let department = 'General';
+    let forwardNumber = '+16143708248';
     switch (req.body.Digits) {
         case '1':
             department = 'Immigration';
+            forwardNumber = '+19378564921';
             break;
         case '2':
             department = 'ESL';
+            forwardNumber = '+16142549407';
             break;
         case '3':
-            department = 'Health';
+            department = 'Cultural';
+            forwardNumber = '+15619311029';
             break;
         case '4':
             department = 'Social Services';
+            forwardNumber = '+13476783686';
             break;
         case '5':
             department = 'General';
+            forwardNumber = '+16143708248';
             break;
         default:
             twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Désolé, ce choix n\'est pas valide. Veuillez réessayer.');
@@ -730,8 +757,23 @@ app.post('/gather/fr', (req, res) => {
             return res.type('text/xml').send(twiml.toString());
     }
     
-    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.');
-    twiml.record({ action: `/voicemail/fr?dept=${department}`, maxLength: 60, transcribe: true, transcribeCallback: '/voicemail/transcription' });
+    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, `Veuillez patienter pendant que nous vous connectons au département ${department}.`);
+    twiml.dial({ timeout: 20, action: `/dial-fallback/fr?dept=${encodeURIComponent(department)}`, method: 'POST' }, forwardNumber);
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
+app.post('/dial-fallback/fr', (req, res) => {
+    const twiml = new VoiceResponse();
+    const dialStatus = req.body.DialCallStatus;
+    const department = req.query.dept || 'General';
+
+    if (dialStatus === 'completed' || dialStatus === 'answered') {
+        twiml.hangup();
+    } else {
+        twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.');
+        twiml.record({ action: `/voicemail/fr?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true, transcribeCallback: '/voicemail/transcription' });
+    }
     res.type('text/xml');
     res.send(twiml.toString());
 });
