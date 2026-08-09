@@ -142,9 +142,9 @@ app.get('/api/media', (req, res) => {
     if (!mediaUrl) return res.status(400).send('Missing url');
 
     const auth = Buffer.from(process.env.TWILIO_ACCOUNT_SID + ':' + process.env.TWILIO_AUTH_TOKEN).toString('base64');
-    const https = require('https');
+    const client = mediaUrl.startsWith('http:') ? require('http') : require('https');
     
-    https.get(mediaUrl, { headers: { 'Authorization': `Basic ${auth}` } }, (twilioRes) => {
+    client.get(mediaUrl, { headers: { 'Authorization': `Basic ${auth}` } }, (twilioRes) => {
         if (twilioRes.statusCode >= 300 && twilioRes.statusCode < 400 && twilioRes.headers.location) {
             res.redirect(twilioRes.headers.location);
         } else {
