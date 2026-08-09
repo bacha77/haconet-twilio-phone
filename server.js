@@ -661,7 +661,7 @@ app.post('/gather/en', (req, res) => {
     }
     
     twiml.say({ voice: 'Polly.Joanna' }, `Please hold while we connect you to the ${department} department.`);
-    twiml.dial({ timeout: 20, action: `/dial-fallback/en?dept=${encodeURIComponent(department)}`, method: 'POST' }, forwardNumber);
+    twiml.dial({ timeout: 120, action: `/dial-fallback/en?dept=${encodeURIComponent(department)}`, method: 'POST' }, forwardNumber);
     res.type('text/xml');
     res.send(twiml.toString());
 });
@@ -758,7 +758,7 @@ app.post('/gather/fr', (req, res) => {
     }
     
     twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, `Veuillez patienter pendant que nous vous connectons au département ${department}.`);
-    twiml.dial({ timeout: 20, action: `/dial-fallback/fr?dept=${encodeURIComponent(department)}`, method: 'POST' }, forwardNumber);
+    twiml.dial({ timeout: 120, action: `/dial-fallback/fr?dept=${encodeURIComponent(department)}`, method: 'POST' }, forwardNumber);
     res.type('text/xml');
     res.send(twiml.toString());
 });
