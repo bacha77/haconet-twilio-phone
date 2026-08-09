@@ -712,6 +712,16 @@ app.post('/outbound-status', async (req, res) => {
     res.sendStatus(200);
 });
 
+app.post('/hold-music', (req, res) => {
+    const twiml = new VoiceResponse();
+    const host = req.get('host');
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+    twiml.play(`${baseUrl}/Haiti%20Cherie%20(Instrumental).mp3`);
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
 app.post('/inbound-conference-end', async (req, res) => {
     const twiml = new VoiceResponse();
     const inboundCallSid = req.body.CallSid;
