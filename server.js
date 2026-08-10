@@ -118,7 +118,7 @@ async function sendSmsConfirmation(callerNumber) {
 async function sendAutoReply(callerNumber, language) {
     if (!TWILIO_PHONE_NUMBER || !process.env.TWILIO_ACCOUNT_SID) return;
     const body = language === 'fr' 
-        ? "Bonjour, c'est Haconet ! Désolé, nous avons manqué votre appel. Notre bureau est actuellement fermé, mais vous pouvez nous visiter en ligne sur www.haconet.org ou répondre à ce message et quelqu'un vous recontactera bientôt."
+        ? "Bonjou, se Haconet! Nou regrèt nou rate apèl ou a. Biwo nou an fèmen kounye a, men ou ka vizite nou sou entènèt nan www.haconet.org oswa reponn mesaj sa a epi yon moun ap kontakte ou byento."
         : "Hi, this is Haconet! Sorry we missed your call. Our office is currently closed, but you can visit us online at www.haconet.org or reply to this text and someone will get back to you soon.";
     try {
         await twilioClient.messages.create({
