@@ -692,7 +692,7 @@ app.all('/gather/en', (req, res) => {
         to: forwardNumber,
         from: twilioNumber,
         twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
-        statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=en`,
+        statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=en&caller=${encodeURIComponent(req.body.From)}`,
         statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
         timeout: 120
     }).then(call => {
@@ -718,8 +718,10 @@ app.all('/outbound-status', async (req, res) => {
     const inboundCallSid = req.query.inboundCallSid;
     const department = req.query.dept || 'General';
     const lang = req.query.lang || 'en';
+    const callerNumber = req.query.caller;
 
     if (['no-answer', 'canceled', 'failed', 'busy'].includes(callStatus)) {
+        if (callerNumber) sendAutoReply(callerNumber);
         try {
             await twilioClient.calls(inboundCallSid).update({
                 twiml: `<Response><Redirect method="POST">/dial-fallback/${lang}?dept=${encodeURIComponent(department)}</Redirect></Response>`
@@ -763,9 +765,6 @@ app.all('/dial-fallback/en', (req, res) => {
     if (dialStatus === 'completed' || dialStatus === 'answered') {
         twiml.hangup();
     } else {
-        const callerNumber = req.body.From;
-        if (callerNumber) sendAutoReply(callerNumber);
-
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. All of our representatives are currently busy. Please leave a message after the tone.');
         twiml.record({ action: `/voicemail/en?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true, transcribeCallback: '/voicemail/transcription' });
     }
@@ -860,7 +859,7 @@ app.all('/gather/fr', (req, res) => {
         to: forwardNumber,
         from: twilioNumber,
         twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
-        statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr`,
+        statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
         statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
         timeout: 120
     }).then(call => {
@@ -889,9 +888,6 @@ app.all('/dial-fallback/fr', (req, res) => {
     if (dialStatus === 'completed' || dialStatus === 'answered') {
         twiml.hangup();
     } else {
-        const callerNumber = req.body.From;
-        if (callerNumber) sendAutoReply(callerNumber);
-
         twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.');
         twiml.record({ action: `/voicemail/fr?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true, transcribeCallback: '/voicemail/transcription' });
     }
