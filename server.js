@@ -115,11 +115,9 @@ async function sendSmsConfirmation(callerNumber) {
     }
 }
 
-async function sendAutoReply(callerNumber, language) {
+async function sendAutoReply(callerNumber) {
     if (!TWILIO_PHONE_NUMBER || !process.env.TWILIO_ACCOUNT_SID) return;
-    const body = language === 'fr' 
-        ? "Bonjou, se Haconet! Nou regrèt nou rate apèl ou a. Biwo nou an fèmen kounye a, men ou ka vizite nou sou entènèt nan www.haconet.org oswa reponn mesaj sa a epi yon moun ap kontakte ou byento."
-        : "Hi, this is Haconet! Sorry we missed your call. Our office is currently closed, but you can visit us online at www.haconet.org or reply to this text and someone will get back to you soon.";
+    const body = "Hi, this is Haconet! Sorry we missed your call. Our office is currently closed, but you can visit us online at www.haconet.org or reply to this text and someone will get back to you soon.\n\nBonjou, se Haconet! Nou regrèt nou rate apèl ou a. Biwo nou an fèmen kounye a, men ou ka vizite nou sou entènèt nan www.haconet.org oswa reponn mesaj sa a epi yon moun ap kontakte ou byento.";
     try {
         await twilioClient.messages.create({
             body: body,
@@ -579,7 +577,7 @@ app.all('/voice', (req, res) => {
     
     if (!isBusinessHours()) {
         const callerNumber = req.body.From;
-        if (callerNumber) sendAutoReply(callerNumber, 'en');
+        if (callerNumber) sendAutoReply(callerNumber);
 
         // After-hours Answering Machine
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M, and on Sunday by appointment only. Please leave a message after the tone.');
@@ -766,7 +764,7 @@ app.all('/dial-fallback/en', (req, res) => {
         twiml.hangup();
     } else {
         const callerNumber = req.body.From;
-        if (callerNumber) sendAutoReply(callerNumber, 'en');
+        if (callerNumber) sendAutoReply(callerNumber);
 
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. All of our representatives are currently busy. Please leave a message after the tone.');
         twiml.record({ action: `/voicemail/en?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true, transcribeCallback: '/voicemail/transcription' });
@@ -892,7 +890,7 @@ app.all('/dial-fallback/fr', (req, res) => {
         twiml.hangup();
     } else {
         const callerNumber = req.body.From;
-        if (callerNumber) sendAutoReply(callerNumber, 'fr');
+        if (callerNumber) sendAutoReply(callerNumber);
 
         twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.');
         twiml.record({ action: `/voicemail/fr?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true, transcribeCallback: '/voicemail/transcription' });
