@@ -713,6 +713,78 @@ app.all('/gather/en', (req, res) => {
     res.send(twiml.toString());
 });
 
+app.all('/menu/fr', (req, res) => {
+    const twiml = new VoiceResponse();
+    const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
+    gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, "Pour des questions concernant l'immigration, tapez 1. Pour notre programme d'anglais E S L, tapez 2. Pour les affaires culturelles, tapez 3. Pour les services sociaux, tapez 4. Pour toute autre question, tapez 5.");
+    twiml.redirect('/menu/fr');
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
+app.all('/gather/fr', (req, res) => {
+    const twiml = new VoiceResponse();
+    let department = 'General';
+    let forwardNumber = '+16143708248';
+    switch (req.body.Digits) {
+        case '1':
+            department = 'Immigration';
+            forwardNumber = '+19378564921';
+            break;
+        case '2':
+            department = 'ESL';
+            forwardNumber = '+16142549407';
+            break;
+        case '3':
+            department = 'Cultural';
+            forwardNumber = '+15619311029';
+            break;
+        case '4':
+            department = 'Social Services';
+            forwardNumber = '+13476783686';
+            break;
+        case '5':
+            department = 'General';
+            forwardNumber = '+16143708248';
+            break;
+        default:
+            twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, "Désolé, je ne comprends pas ce choix.");
+            twiml.redirect('/menu/fr');
+            return res.type('text/xml').send(twiml.toString());
+    }
+    
+    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, `Veuillez patienter pendant que nous vous mettons en relation avec le service ${department}.`);
+    const inboundCallSid = req.body.CallSid;
+    const twilioNumber = req.body.To;
+    const host = req.get('host');
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    twilioClient.calls.create({
+        to: forwardNumber,
+        from: twilioNumber,
+        twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
+        statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
+        statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
+        timeout: 120
+    }).then(call => {
+        outboundCalls[inboundCallSid] = call.sid;
+    }).catch(e => console.error("Outbound Call Error:", e));
+
+    const dial = twiml.dial();
+    dial.conference({
+        waitUrl: baseUrl + '/hold-music',
+        waitMethod: 'POST',
+        startConferenceOnEnter: false,
+        endConferenceOnExit: true,
+        statusCallback: baseUrl + '/inbound-conference-status',
+        statusCallbackEvent: 'leave'
+    }, `conf_${inboundCallSid}`);
+    
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
 app.all('/outbound-status', async (req, res) => {
     const callStatus = req.body.CallStatus;
     const inboundCallSid = req.query.inboundCallSid;
