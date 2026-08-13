@@ -715,10 +715,10 @@ app.all('/gather/en', async (req, res) => {
     twilioClient.calls.create({
         to: forwardNumber,
         from: twilioNumber,
-        twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
+        url: `${baseUrl}/whisper?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=en&caller=${encodeURIComponent(req.body.From)}`,
         statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=en&caller=${encodeURIComponent(req.body.From)}`,
         statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
-        timeout: 20
+        timeout: 60
     }).then(call => {
         outboundCalls[inboundCallSid] = call.sid;
     }).catch(e => console.error("Outbound Call Error:", e));
@@ -795,10 +795,10 @@ app.all('/gather/fr', async (req, res) => {
     twilioClient.calls.create({
         to: forwardNumber,
         from: twilioNumber,
-        twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
+        url: `${baseUrl}/whisper?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
         statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
         statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
-        timeout: 20
+        timeout: 60
     }).then(call => {
         outboundCalls[inboundCallSid] = call.sid;
     }).catch(e => console.error("Outbound Call Error:", e));
@@ -815,6 +815,56 @@ app.all('/gather/fr', async (req, res) => {
     
     res.type('text/xml');
     res.send(twiml.toString());
+});
+app.all('/whisper', (req, res) => {
+    const twiml = new VoiceResponse();
+    const q = req.query;
+    const qs = `inboundCallSid=${q.inboundCallSid}&dept=${encodeURIComponent(q.dept || 'General')}&lang=${q.lang || 'en'}&caller=${encodeURIComponent(q.caller || '')}`;
+    const gather = twiml.gather({ numDigits: 1, action: `/whisper-confirm?${qs}`, method: 'POST', timeout: 10 });
+    
+    if (q.lang === 'fr') {
+        gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Vous avez un appel de Haconet. Appuyez sur un pour accepter.');
+    } else {
+        gather.say({ voice: 'Polly.Joanna' }, 'You have a call from Haconet. Press 1 to accept.');
+    }
+    
+    twiml.redirect({ method: 'POST' }, `/whisper-reject?${qs}`);
+    res.type('text/xml').send(twiml.toString());
+});
+
+app.all('/whisper-confirm', (req, res) => {
+    const twiml = new VoiceResponse();
+    if (req.body.Digits === '1') {
+        const dial = twiml.dial();
+        dial.conference({ startConferenceOnEnter: true, endConferenceOnExit: true }, `conf_${req.query.inboundCallSid}`);
+    } else {
+        const qs = `inboundCallSid=${req.query.inboundCallSid}&dept=${encodeURIComponent(req.query.dept || 'General')}&lang=${req.query.lang || 'en'}`;
+        twiml.redirect({ method: 'POST' }, `/whisper-reject?${qs}`);
+    }
+    res.type('text/xml').send(twiml.toString());
+});
+
+app.all('/whisper-reject', async (req, res) => {
+    const inboundCallSid = req.query.inboundCallSid;
+    const dept = req.query.dept || 'General';
+    const lang = req.query.lang || 'en';
+    const caller = req.query.caller;
+
+    // Send inbound caller to voicemail
+    if (inboundCallSid && twilioClient) {
+        if (caller) sendAutoReply(caller);
+        try {
+            await twilioClient.calls(inboundCallSid).update({
+                twiml: `<Response><Redirect method="POST">/dial-fallback/${lang}?dept=${encodeURIComponent(dept)}</Redirect></Response>`
+            });
+        } catch (e) {
+            console.log("Failed to redirect inbound leg in whisper-reject", e);
+        }
+    }
+
+    const twiml = new VoiceResponse();
+    twiml.hangup();
+    res.type('text/xml').send(twiml.toString());
 });
 
 app.all('/outbound-status', async (req, res) => {
@@ -968,10 +1018,10 @@ app.all('/gather/fr', (req, res) => {
     twilioClient.calls.create({
         to: forwardNumber,
         from: twilioNumber,
-        twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
+        url: `${baseUrl}/whisper?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
         statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
         statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
-        timeout: 20
+        timeout: 60
     }).then(call => {
         outboundCalls[inboundCallSid] = call.sid;
     }).catch(e => console.error("Outbound Call Error:", e));
@@ -1082,3 +1132,5 @@ app.all('/voicemail/transcription', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Haconet Server running on port ${PORT}`);
 });
+ 
+ 
