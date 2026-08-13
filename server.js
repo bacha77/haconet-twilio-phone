@@ -889,9 +889,15 @@ app.all('/voicemail/en', async (req, res) => {
             await supabase.from('contacts').upsert([{ 
                 phone_number: callerNumber, 
                 department: department,
-                last_updated: new Date()
-            }]);
+                status: 'unread',
+                last_message_at: new Date().toISOString(),
+                last_updated: new Date().toISOString()
+            }], { onConflict: 'phone_number' });
+        } catch (e) {
+            console.error('Voicemail Contact DB Error:', e);
+        }
             
+        try {
             await supabase.from('messages').insert([{
                 sender_number: callerNumber,
                 body: `📞 New Voicemail (${department})`,
@@ -900,7 +906,7 @@ app.all('/voicemail/en', async (req, res) => {
                 direction: 'inbound'
             }]);
         } catch (e) {
-            console.error('Voicemail DB Error:', e);
+            console.error('Voicemail Message DB Error:', e);
         }
 
         if (typeof sendVoicemailEmail === 'function') sendVoicemailEmail(recordingUrl, rawCallerNumber);
@@ -1014,9 +1020,15 @@ app.all('/voicemail/fr', async (req, res) => {
             await supabase.from('contacts').upsert([{ 
                 phone_number: callerNumber, 
                 department: department,
-                last_updated: new Date()
-            }]);
+                status: 'unread',
+                last_message_at: new Date().toISOString(),
+                last_updated: new Date().toISOString()
+            }], { onConflict: 'phone_number' });
+        } catch (e) {
+            console.error('Voicemail Contact DB Error (FR):', e);
+        }
             
+        try {
             // Insert voicemail audio into the dashboard inbox
             await supabase.from('messages').insert([{
                 sender_number: callerNumber,
@@ -1026,7 +1038,7 @@ app.all('/voicemail/fr', async (req, res) => {
                 direction: 'inbound'
             }]);
         } catch (e) {
-            console.error('Voicemail DB Error:', e);
+            console.error('Voicemail Message DB Error (FR):', e);
         }
 
         // Keep legacy email/sms notifications if functions exist
