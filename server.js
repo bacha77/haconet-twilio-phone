@@ -718,7 +718,7 @@ app.all('/gather/en', async (req, res) => {
         twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
         statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=en&caller=${encodeURIComponent(req.body.From)}`,
         statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
-        timeout: 120
+        timeout: 20
     }).then(call => {
         outboundCalls[inboundCallSid] = call.sid;
     }).catch(e => console.error("Outbound Call Error:", e));
@@ -798,7 +798,7 @@ app.all('/gather/fr', async (req, res) => {
         twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
         statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
         statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
-        timeout: 120
+        timeout: 20
     }).then(call => {
         outboundCalls[inboundCallSid] = call.sid;
     }).catch(e => console.error("Outbound Call Error:", e));
@@ -971,7 +971,7 @@ app.all('/gather/fr', (req, res) => {
         twiml: `<Response><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">conf_${inboundCallSid}</Conference></Dial></Response>`,
         statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
         statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
-        timeout: 120
+        timeout: 20
     }).then(call => {
         outboundCalls[inboundCallSid] = call.sid;
     }).catch(e => console.error("Outbound Call Error:", e));
