@@ -258,18 +258,26 @@ app.all('/api/assign', async (req, res) => {
         await supabase.from('contacts').update({ assigned_to }).eq('phone_number', phone_number);
         
         // ----------------------------------------------------
-        // NOTIFICATION STUB
+        // NOTIFICATION LOGIC
         // ----------------------------------------------------
-        // Fetch staff info to get their phone number or email
+        // Fetch staff info to get their email
         const { data: staffData } = await supabase.from('staff').select('*').eq('name', assigned_to).single();
         
-        if (staffData && staffData.phone) {
-            console.log(`[STUB] Would send SMS to ${assigned_to} at ${staffData.phone}: "New ticket assigned: ${phone_number}"`);
-            // client.messages.create({ body: '...', to: staffData.phone, from: process.env.TWILIO_PHONE_NUMBER })
-        } else if (staffData && staffData.email) {
-            console.log(`[STUB] Would send Email to ${assigned_to} at ${staffData.email}: "New ticket assigned: ${phone_number}"`);
+        if (staffData && staffData.email) {
+            try {
+                const mailOptions = {
+                    from: process.env.EMAIL_USER,
+                    to: staffData.email,
+                    subject: `New Ticket Assigned: ${phone_number}`,
+                    text: `Hello ${assigned_to},\n\nA new ticket (Phone: ${phone_number}) has been assigned to you.\n\nPlease log in to the Haconet Dashboard to view and respond: https://bacha77.github.io/haconet-dashboard/`
+                };
+                await transporter.sendMail(mailOptions);
+                console.log(`Email notification sent to ${staffData.email} for ticket ${phone_number}`);
+            } catch (emailError) {
+                console.error(`Failed to send email notification to ${staffData.email}:`, emailError);
+            }
         } else {
-            console.log(`[STUB] Ticket assigned to ${assigned_to}, but they have no phone or email on file for notifications.`);
+            console.log(`Ticket assigned to ${assigned_to}, but they have no email on file for notifications.`);
         }
         
         res.send({ success: true });
