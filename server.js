@@ -370,7 +370,7 @@ app.get('/api/analytics', async (req, res) => {
 
 // --- DASHBOARD API: SEND REPLIES ---
 app.all('/api/reply', upload.single('file'), async (req, res) => {
-    const { to, body } = req.body;
+    const { to, body, is_internal } = req.body;
     const file = req.file;
 
     if (!to || (!body && !file)) return res.status(400).json({ error: 'Missing "to" or content' });
@@ -393,22 +393,28 @@ app.all('/api/reply', upload.single('file'), async (req, res) => {
             twilioOpts.mediaUrl = [mediaUrl];
         }
 
-        // Send message via Twilio
-        await twilioClient.messages.create(twilioOpts);
+        const isInternal = is_internal === 'true' || is_internal === true;
+
+        if (!isInternal) {
+            // Send message via Twilio
+            await twilioClient.messages.create(twilioOpts);
+        }
 
         if (supabase) {
-            // Save outbound message
+            // Save message
             await supabase.from('messages').insert([{
                 sender_number: to,
                 body: body || '[Attachment Only]',
                 media_url: mediaUrl,
-                direction: 'outbound'
+                direction: isInternal ? 'internal_note' : 'outbound'
             }]);
             
-            // Auto-pause bot when a human replies!
-            await setBotStatus(to, false);
+            if (!isInternal) {
+                // Auto-pause bot when a human replies!
+                await setBotStatus(to, false);
+            }
         }
-        res.json({ success: true, mediaUrl });
+        res.json({ success: true, mediaUrl, isInternal });
     } catch (error) {
         console.error('Reply Error:', error);
         res.status(500).json({ error: error.message });
