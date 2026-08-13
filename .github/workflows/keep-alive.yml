@@ -11,4 +11,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Render URL
-        run: curl -s https://haconet-twilio-phone.onrender.com > /dev/null
+        run: curl -s https://haconet-twilio-phone.onrender.com/ping > /dev/null
