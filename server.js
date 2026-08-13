@@ -20,6 +20,8 @@ app.use(express.json());
 app.use(urlencoded({ extended: false }));
 app.use(express.static('public'));
 
+app.get('/ping', (req, res) => res.send('OK'));
+
 const upload = multer({ 
     storage: multer.diskStorage({
         destination: (req, file, cb) => {
@@ -590,7 +592,7 @@ app.all('/voice', (req, res) => {
     const twiml = new VoiceResponse();
     
     if (!isBusinessHours()) {
-        const callerNumber = req.body.From;
+        const callerNumber = (req.body && req.body.From) || (req.query && req.query.From);
         if (callerNumber) sendAutoReply(callerNumber);
 
         // After-hours Answering Machine
