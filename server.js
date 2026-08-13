@@ -650,7 +650,7 @@ app.all('/menu/en', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.all('/gather/en', (req, res) => {
+app.all('/gather/en', async (req, res) => {
     const twiml = new VoiceResponse();
     let department = 'General';
     let forwardNumber = '+16143708248';
@@ -679,6 +679,14 @@ app.all('/gather/en', (req, res) => {
             twiml.say({ voice: 'Polly.Joanna' }, 'Sorry, I don\'t understand that choice.');
             twiml.redirect('/menu/en');
             return res.type('text/xml').send(twiml.toString());
+    }
+    
+    if (supabase && req.body.From) {
+        try {
+            await supabase.from('contacts').update({ department }).eq('phone_number', req.body.From);
+        } catch (e) {
+            console.error("Failed to update department in /gather/en", e);
+        }
     }
     
     twiml.say({ voice: 'Polly.Joanna' }, `Please hold while we connect you to the ${department} department.`);
@@ -722,7 +730,7 @@ app.all('/menu/fr', (req, res) => {
     res.send(twiml.toString());
 });
 
-app.all('/gather/fr', (req, res) => {
+app.all('/gather/fr', async (req, res) => {
     const twiml = new VoiceResponse();
     let department = 'General';
     let forwardNumber = '+16143708248';
@@ -751,6 +759,14 @@ app.all('/gather/fr', (req, res) => {
             twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, "Désolé, je ne comprends pas ce choix.");
             twiml.redirect('/menu/fr');
             return res.type('text/xml').send(twiml.toString());
+    }
+    
+    if (supabase && req.body.From) {
+        try {
+            await supabase.from('contacts').update({ department }).eq('phone_number', req.body.From);
+        } catch (e) {
+            console.error("Failed to update department in /gather/fr", e);
+        }
     }
     
     twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, `Veuillez patienter pendant que nous vous mettons en relation avec le service ${department}.`);
