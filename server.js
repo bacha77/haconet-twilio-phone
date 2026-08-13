@@ -378,7 +378,7 @@ app.all('/api/reply', upload.single('file'), async (req, res) => {
     try {
         let mediaUrl = undefined;
         let twilioOpts = {
-            from: to.startsWith('whatsapp:') ? `whatsapp:${TWILIO_PHONE_NUMBER}` : TWILIO_PHONE_NUMBER,
+            from: to.startsWith('whatsapp:') ? `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER || TWILIO_PHONE_NUMBER}` : TWILIO_PHONE_NUMBER,
             to: to
         };
         
@@ -423,7 +423,7 @@ app.all('/api/reply', upload.single('file'), async (req, res) => {
 
 
 // --- WHATSAPP & SMS CHATBOT ROUTE ---
-app.all('/whatsapp', async (req, res) => {
+app.all(['/whatsapp', '/sms'], async (req, res) => {
     const twiml = new MessagingResponse();
     const incomingMsgRaw = req.body.Body || '';
     const incomingMsg = incomingMsgRaw.trim().toLowerCase();
