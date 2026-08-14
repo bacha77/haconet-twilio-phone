@@ -877,10 +877,13 @@ app.all('/outbound-status', async (req, res) => {
 
     if (['no-answer', 'canceled', 'failed', 'busy'].includes(callStatus)) {
         if (callerNumber) sendAutoReply(callerNumber);
+        const host = req.get('host') || 'api.haconet.org';
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const baseUrl = `${protocol}://${host}`;
         try {
             const fallbackTwiml = lang === 'fr' 
-                ? `<Response><Say voice="Polly.Lea" language="fr-FR">Merci d'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.</Say><Record action="/voicemail/fr?dept=${encodeURIComponent(department)}" maxLength="60" transcribe="true"/></Response>`
-                : `<Response><Say voice="Polly.Joanna">Thank you for calling Haconet. All of our representatives are currently busy. Please leave a message after the tone.</Say><Record action="/voicemail/en?dept=${encodeURIComponent(department)}" maxLength="60" transcribe="true"/></Response>`;
+                ? `<Response><Say voice="Polly.Lea" language="fr-FR">Merci d'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.</Say><Record action="${baseUrl}/voicemail/fr?dept=${encodeURIComponent(department)}" maxLength="60" transcribe="true"/></Response>`
+                : `<Response><Say voice="Polly.Joanna">Thank you for calling Haconet. All of our representatives are currently busy. Please leave a message after the tone.</Say><Record action="${baseUrl}/voicemail/en?dept=${encodeURIComponent(department)}" maxLength="60" transcribe="true"/></Response>`;
             
             await twilioClient.calls(inboundCallSid).update({
                 twiml: fallbackTwiml
