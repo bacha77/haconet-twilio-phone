@@ -601,7 +601,7 @@ app.all('/voice', (req, res) => {
         // After-hours Answering Machine
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M, and on Sunday by appointment only. Please leave a message after the tone.');
         twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Nous sommes ouverts du lundi au vendredi, de 9 heures du matin à 5 heures de l\'après-midi, et le dimanche sur rendez-vous uniquement. Veuillez laisser un message après le bip sonore.');
-        twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true, transcribeCallback: `${baseUrl}/voicemail/transcription` });
+        twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true });
     } else {
         // Normal Business Hours Menu
         const gather = twiml.gather({ numDigits: 1, action: '/language', method: 'POST' });
@@ -637,7 +637,7 @@ app.all('/menu/main', (req, res) => {
     if (!isBusinessHours()) {
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M, and on Sunday by appointment only. Please leave a message after the tone.');
         twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Nous sommes ouverts du lundi au vendredi, de 9 heures du matin à 5 heures de l\'après-midi, et le dimanche sur rendez-vous uniquement. Veuillez laisser un message après le bip sonore.');
-        twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true, transcribeCallback: `${baseUrl}/voicemail/transcription` });
+        twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true });
     } else {
         const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
         gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. Thank you for calling us today. We are happy to assist you! For English, please press 1.');
@@ -929,7 +929,7 @@ app.all('/dial-fallback/en', (req, res) => {
         twiml.hangup();
     } else {
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. All of our representatives are currently busy. Please leave a message after the tone.');
-        twiml.record({ action: `/voicemail/en?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true, transcribeCallback: `${baseUrl}/voicemail/transcription` });
+        twiml.record({ action: `/voicemail/en?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true });
     }
     res.type('text/xml');
     res.send(twiml.toString());
@@ -1061,7 +1061,7 @@ app.all('/dial-fallback/fr', (req, res) => {
         twiml.hangup();
     } else {
         twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.');
-        twiml.record({ action: `/voicemail/fr?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true, transcribeCallback: `${baseUrl}/voicemail/transcription` });
+        twiml.record({ action: `/voicemail/fr?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true });
     }
     res.type('text/xml');
     res.send(twiml.toString());
