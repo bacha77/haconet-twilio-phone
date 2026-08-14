@@ -639,10 +639,16 @@ app.all('/menu/main', (req, res) => {
         twiml.play(`${baseUrl}/creole_closing.mp3.mp3`);
         twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true });
     } else {
-        const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
-        gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. Thank you for calling us today. We are happy to assist you! For English, please press 1.');
-        gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Bienvenue chez Haconet. Merci de votre appel. Pour le service en créole, veuillez appuyer sur le deux.');
-        twiml.redirect('/menu/main');
+        const attempt = parseInt(req.query.attempt || '1', 10);
+        if (attempt > 2) {
+            twiml.say({ voice: 'Polly.Joanna' }, 'We didn\'t receive any input. Goodbye.');
+            twiml.hangup();
+        } else {
+            const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
+            gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. Thank you for calling us today. We are happy to assist you! For English, please press 1.');
+            gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Bienvenue chez Haconet. Merci de votre appel. Pour le service en créole, veuillez appuyer sur le deux.');
+            twiml.redirect(`/menu/main?attempt=${attempt + 1}`);
+        }
     }
     
     res.type('text/xml');
@@ -664,10 +670,16 @@ app.all('/gather/main', (req, res) => {
 });
 
 app.all('/menu/en', (req, res) => {
+    const attempt = parseInt(req.query.attempt || '1', 10);
     const twiml = new VoiceResponse();
-    const gather = twiml.gather({ numDigits: 1, action: '/gather/en', method: 'POST' });
-    gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our E S L Program, press 2. For Cultural, press 3. For Social Services, press 4. For any other questions, press 5.');
-    twiml.redirect('/menu/en');
+    if (attempt > 2) {
+        twiml.say({ voice: 'Polly.Joanna' }, 'We didn\'t receive any input. Goodbye.');
+        twiml.hangup();
+    } else {
+        const gather = twiml.gather({ numDigits: 1, action: '/gather/en', method: 'POST' });
+        gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our E S L Program, press 2. For Cultural, press 3. For Social Services, press 4. For any other questions, press 5.');
+        twiml.redirect(`/menu/en?attempt=${attempt + 1}`);
+    }
     res.type('text/xml');
     res.send(twiml.toString());
 });
@@ -750,17 +762,25 @@ app.all('/gather/en', async (req, res) => {
 });
 
 app.all('/menu/fr', (req, res) => {
+    const attempt = parseInt(req.query.attempt || '1', 10);
     const host = req.get('host');
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
     const twiml = new VoiceResponse();
-    const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
     
-    // Play the recorded Haitian Creole voice file
-    gather.play(`${baseUrl}/creole_menu.mp3.mp3`);
+    if (attempt > 2) {
+        twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Au revoir.');
+        twiml.hangup();
+    } else {
+        const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
+        
+        // Play the recorded Haitian Creole voice file
+        gather.play(`${baseUrl}/creole_menu.mp3.mp3`);
+        
+        twiml.redirect(`/menu/fr?attempt=${attempt + 1}`);
+    }
     
-    twiml.redirect('/menu/fr');
     res.type('text/xml');
     res.send(twiml.toString());
 });
