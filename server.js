@@ -600,7 +600,7 @@ app.all('/voice', (req, res) => {
         const host = req.get('host');
         const protocol = host.includes('localhost') ? 'http' : 'https';
         const baseUrl = `${protocol}://${host}`;
-        twiml.play(`${baseUrl}/creole_closing.m4a`);
+        twiml.play(`${baseUrl}/creole_closing.mp3`);
         twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true });
     } else {
         // Normal Business Hours Menu
@@ -636,7 +636,7 @@ app.all('/menu/main', (req, res) => {
         const host = req.get('host');
         const protocol = host.includes('localhost') ? 'http' : 'https';
         const baseUrl = `${protocol}://${host}`;
-        twiml.play(`${baseUrl}/creole_closing.m4a`);
+        twiml.play(`${baseUrl}/creole_closing.mp3`);
         twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true });
     } else {
         const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
@@ -752,7 +752,7 @@ app.all('/menu/fr', (req, res) => {
     const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
     
     // Play the recorded Haitian Creole voice file
-    gather.play(`${baseUrl}/creole_menu.m4a`);
+    gather.play(`${baseUrl}/creole_menu.mp3`);
     
     twiml.redirect('/menu/fr');
     res.type('text/xml');
