@@ -590,9 +590,6 @@ You MUST output your response in JSON format containing two keys: "reply" (your 
 
 app.all('/voice', (req, res) => {
     const twiml = new VoiceResponse();
-    const host = req.get('host');
-    const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
-    const baseUrl = `${protocol}://${host}`;
     
     if (!isBusinessHours()) {
         const callerNumber = (req.body && req.body.From) || (req.query && req.query.From);
@@ -630,9 +627,6 @@ app.all('/language', (req, res) => {
 
 app.all('/menu/main', (req, res) => {
     const twiml = new VoiceResponse();
-    const host = req.get('host');
-    const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
-    const baseUrl = `${protocol}://${host}`;
     
     if (!isBusinessHours()) {
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M, and on Sunday by appointment only. Please leave a message after the tone.');
@@ -882,9 +876,12 @@ app.all('/outbound-status', async (req, res) => {
 
     if (['no-answer', 'canceled', 'failed', 'busy'].includes(callStatus)) {
         if (callerNumber) sendAutoReply(callerNumber);
+        const host = req.headers['x-forwarded-host'] || req.get('host') || '';
+        const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
+        const baseUrl = host ? `${protocol}://${host}` : '';
         try {
             await twilioClient.calls(inboundCallSid).update({
-                twiml: `<Response><Redirect method="POST">/dial-fallback/${lang}?dept=${encodeURIComponent(department)}</Redirect></Response>`
+                twiml: `<Response><Redirect method="POST">${baseUrl}/dial-fallback/${lang}?dept=${encodeURIComponent(department)}</Redirect></Response>`
             });
         } catch (e) {
             console.log("Inbound caller already hung up (expected).");
@@ -919,9 +916,6 @@ app.all('/inbound-conference-status', async (req, res) => {
 
 app.all('/dial-fallback/en', (req, res) => {
     const twiml = new VoiceResponse();
-    const host = req.get('host');
-    const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
-    const baseUrl = `${protocol}://${host}`;
     const dialStatus = req.body.DialCallStatus;
     const department = req.query.dept || 'General';
 
@@ -1051,9 +1045,6 @@ app.all('/gather/fr', (req, res) => {
 
 app.all('/dial-fallback/fr', (req, res) => {
     const twiml = new VoiceResponse();
-    const host = req.get('host');
-    const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
-    const baseUrl = `${protocol}://${host}`;
     const dialStatus = req.body.DialCallStatus;
     const department = req.query.dept || 'General';
 
