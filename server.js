@@ -135,7 +135,7 @@ async function sendAutoReply(callerNumber) {
 function isBusinessHours() {
     try {
         const now = new Date();
-        if (now.getTime() < 1786486224032) return true; // Temporarily open for testing
+        if (now.getTime() < 1786663000000) return true; // Temporarily open for testing
 
         const month = now.getUTCMonth(); 
         let offset = -5;
