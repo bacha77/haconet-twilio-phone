@@ -697,6 +697,12 @@ app.all('/gather/en', async (req, res) => {
             department = 'General';
             forwardNumber = '+16143708248';
             break;
+        case '9':
+            twiml.redirect('/menu/en');
+            return res.type('text/xml').send(twiml.toString());
+        case '0':
+            twiml.redirect('/menu/main');
+            return res.type('text/xml').send(twiml.toString());
         default:
             twiml.say({ voice: 'Polly.Joanna' }, 'Sorry, I don\'t understand that choice.');
             twiml.redirect('/menu/en');
@@ -784,6 +790,12 @@ app.all('/gather/fr', async (req, res) => {
             department = 'General';
             forwardNumber = '+16143708248';
             break;
+        case '9':
+            twiml.redirect('/menu/fr');
+            return res.type('text/xml').send(twiml.toString());
+        case '0':
+            twiml.redirect('/menu/main');
+            return res.type('text/xml').send(twiml.toString());
         default:
             twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, "Désolé, je ne comprends pas ce choix.");
             twiml.redirect('/menu/fr');
