@@ -746,7 +746,7 @@ app.all('/menu/fr', (req, res) => {
     const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
     
     // Play the recorded Haitian Creole voice file
-    gather.play(`${baseUrl}/creole_menu.mp3.m4a`);
+    gather.play(`${baseUrl}/creole_menu.m4a`);
     
     twiml.redirect('/menu/fr');
     res.type('text/xml');
@@ -792,7 +792,7 @@ app.all('/gather/fr', async (req, res) => {
         }
     }
     
-    twiml.play(`${baseUrl}/creole_closing.mp3.m4a`);
+    twiml.play(`${baseUrl}/creole_closing.m4a`);
     const inboundCallSid = req.body.CallSid;
     const twilioNumber = req.body.To;
     const host = req.get('host');
