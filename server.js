@@ -597,7 +597,10 @@ app.all('/voice', (req, res) => {
 
         // After-hours Answering Machine
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M, and on Sunday by appointment only. Please leave a message after the tone.');
-        twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Nous sommes ouverts du lundi au vendredi, de 9 heures du matin à 5 heures de l\'après-midi, et le dimanche sur rendez-vous uniquement. Veuillez laisser un message après le bip sonore.');
+        const host = req.get('host');
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const baseUrl = `${protocol}://${host}`;
+        twiml.play(`${baseUrl}/creole_closing.m4a`);
         twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true });
     } else {
         // Normal Business Hours Menu
@@ -630,7 +633,10 @@ app.all('/menu/main', (req, res) => {
     
     if (!isBusinessHours()) {
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. Our office is currently closed. We are open Monday to Friday, 9 A M to 5 P M, and on Sunday by appointment only. Please leave a message after the tone.');
-        twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Notre bureau est actuellement fermé. Nous sommes ouverts du lundi au vendredi, de 9 heures du matin à 5 heures de l\'après-midi, et le dimanche sur rendez-vous uniquement. Veuillez laisser un message après le bip sonore.');
+        const host = req.get('host');
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const baseUrl = `${protocol}://${host}`;
+        twiml.play(`${baseUrl}/creole_closing.m4a`);
         twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true });
     } else {
         const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
@@ -792,7 +798,7 @@ app.all('/gather/fr', async (req, res) => {
         }
     }
     
-    twiml.play(`${baseUrl}/creole_closing.m4a`);
+    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, `Veuillez patienter pendant que nous vous mettons en relation avec le service ${department}.`);
     const inboundCallSid = req.body.CallSid;
     const twilioNumber = req.body.To;
     const host = req.get('host');
