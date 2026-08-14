@@ -738,9 +738,16 @@ app.all('/gather/en', async (req, res) => {
 });
 
 app.all('/menu/fr', (req, res) => {
+    const host = req.get('host');
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
     const twiml = new VoiceResponse();
     const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
-    gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, "Pour des questions concernant l'immigration, tapez 1. Pour notre programme d'anglais E S L, tapez 2. Pour les affaires culturelles, tapez 3. Pour les services sociaux, tapez 4. Pour toute autre question, tapez 5.");
+    
+    // Play the recorded Haitian Creole voice file
+    gather.play(`${baseUrl}/creole_menu.mp3.m4a`);
+    
     twiml.redirect('/menu/fr');
     res.type('text/xml');
     res.send(twiml.toString());
@@ -785,7 +792,7 @@ app.all('/gather/fr', async (req, res) => {
         }
     }
     
-    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, `Veuillez patienter pendant que nous vous mettons en relation avec le service ${department}.`);
+    twiml.play(`${baseUrl}/creole_closing.mp3.m4a`);
     const inboundCallSid = req.body.CallSid;
     const twilioNumber = req.body.To;
     const host = req.get('host');
