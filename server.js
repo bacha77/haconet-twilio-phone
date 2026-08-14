@@ -868,6 +868,7 @@ app.all('/whisper-reject', async (req, res) => {
 });
 
 app.all('/outbound-status', async (req, res) => {
+    console.log("Twilio hit /outbound-status", req.body);
     const callStatus = req.body.CallStatus;
     const inboundCallSid = req.query.inboundCallSid;
     const department = req.query.dept || 'General';
@@ -876,15 +877,16 @@ app.all('/outbound-status', async (req, res) => {
 
     if (['no-answer', 'canceled', 'failed', 'busy'].includes(callStatus)) {
         if (callerNumber) sendAutoReply(callerNumber);
-        const host = req.headers['x-forwarded-host'] || req.get('host') || '';
-        const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
-        const baseUrl = host ? `${protocol}://${host}` : '';
         try {
+            const fallbackTwiml = lang === 'fr' 
+                ? `<Response><Say voice="Polly.Lea" language="fr-FR">Merci d'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.</Say><Record action="/voicemail/fr?dept=${encodeURIComponent(department)}" maxLength="60" transcribe="true"/></Response>`
+                : `<Response><Say voice="Polly.Joanna">Thank you for calling Haconet. All of our representatives are currently busy. Please leave a message after the tone.</Say><Record action="/voicemail/en?dept=${encodeURIComponent(department)}" maxLength="60" transcribe="true"/></Response>`;
+            
             await twilioClient.calls(inboundCallSid).update({
-                twiml: `<Response><Redirect method="POST">${baseUrl}/dial-fallback/${lang}?dept=${encodeURIComponent(department)}</Redirect></Response>`
+                twiml: fallbackTwiml
             });
         } catch (e) {
-            console.log("Inbound caller already hung up (expected).");
+            console.log("Inbound caller update error:", e.message, e);
         }
     }
     res.sendStatus(200);
@@ -915,6 +917,7 @@ app.all('/inbound-conference-status', async (req, res) => {
 });
 
 app.all('/dial-fallback/en', (req, res) => {
+    console.log("Twilio hit /dial-fallback/en", req.query);
     const twiml = new VoiceResponse();
     const dialStatus = req.body.DialCallStatus;
     const department = req.query.dept || 'General';
