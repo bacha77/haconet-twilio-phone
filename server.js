@@ -605,8 +605,8 @@ app.all('/voice', (req, res) => {
     } else {
         // Normal Business Hours Menu
         const gather = twiml.gather({ numDigits: 1, action: '/language', method: 'POST' });
-        gather.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. For English, press 1.');
-        gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service en français, veuillez appuyer sur le deux.');
+        gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service en créole, veuillez appuyer sur le un.');
+        gather.say({ voice: 'Polly.Joanna' }, 'For English, press 2.');
         twiml.say({ voice: 'Polly.Joanna' }, 'We didn\'t receive any input. Goodbye.');
     }
     
@@ -617,9 +617,9 @@ app.all('/voice', (req, res) => {
 app.all('/language', (req, res) => {
     const twiml = new VoiceResponse();
     if (req.body.Digits === '1') {
-        twiml.redirect('/menu/en');
-    } else if (req.body.Digits === '2') {
         twiml.redirect('/menu/fr');
+    } else if (req.body.Digits === '2') {
+        twiml.redirect('/menu/en');
     } else {
         twiml.say({ voice: 'Polly.Joanna' }, 'Sorry, I don\'t understand that choice.');
         twiml.redirect('/voice');
@@ -640,8 +640,8 @@ app.all('/menu/main', (req, res) => {
         twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true });
     } else {
         const gather = twiml.gather({ numDigits: 1, action: '/gather/main', method: 'POST' });
-        gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. Thank you for calling us today. We are happy to assist you! For English, please press 1.');
-        gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Bienvenue chez Haconet. Merci de votre appel. Pour le service en français, veuillez appuyer sur le deux.');
+        gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Bienvenue chez Haconet. Merci de votre appel. Pour le service en créole, veuillez appuyer sur le un.');
+        gather.say({ voice: 'Polly.Joanna' }, 'Welcome to Haconet. Thank you for calling us today. We are happy to assist you! For English, please press 2.');
         twiml.redirect('/menu/main');
     }
     
@@ -652,9 +652,9 @@ app.all('/menu/main', (req, res) => {
 app.all('/gather/main', (req, res) => {
     const twiml = new VoiceResponse();
     if (req.body.Digits === '1') {
-        twiml.redirect('/menu/en');
-    } else if (req.body.Digits === '2') {
         twiml.redirect('/menu/fr');
+    } else if (req.body.Digits === '2') {
+        twiml.redirect('/menu/en');
     } else {
         twiml.say({ voice: 'Polly.Joanna' }, 'Sorry, I don\'t understand that choice.');
         twiml.redirect('/menu/main');
