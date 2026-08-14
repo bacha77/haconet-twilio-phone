@@ -717,7 +717,7 @@ app.all('/gather/en', async (req, res) => {
         from: twilioNumber,
         url: `${baseUrl}/whisper?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=en&caller=${encodeURIComponent(req.body.From)}`,
         statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=en&caller=${encodeURIComponent(req.body.From)}`,
-        statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
+        statusCallbackEvent: ['answered', 'completed'],
         timeout: 60
     }).then(call => {
         outboundCalls[inboundCallSid] = call.sid;
@@ -797,7 +797,7 @@ app.all('/gather/fr', async (req, res) => {
         from: twilioNumber,
         url: `${baseUrl}/whisper?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
         statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
-        statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
+        statusCallbackEvent: ['answered', 'completed'],
         timeout: 60
     }).then(call => {
         outboundCalls[inboundCallSid] = call.sid;
@@ -853,9 +853,13 @@ app.all('/whisper-reject', async (req, res) => {
     // Send inbound caller to voicemail
     if (inboundCallSid && twilioClient) {
         if (caller) sendAutoReply(caller);
+        const host = req.get('host') || 'api.haconet.org';
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const baseUrl = `${protocol}://${host}`;
         try {
             await twilioClient.calls(inboundCallSid).update({
-                twiml: `<Response><Redirect method="POST">/dial-fallback/${lang}?dept=${encodeURIComponent(dept)}</Redirect></Response>`
+                url: `${baseUrl}/dial-fallback/${lang}?dept=${encodeURIComponent(dept)}`,
+                method: 'POST'
             });
         } catch (e) {
             console.log("Failed to redirect inbound leg in whisper-reject", e);
