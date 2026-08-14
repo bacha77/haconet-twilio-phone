@@ -881,12 +881,9 @@ app.all('/outbound-status', async (req, res) => {
         const protocol = host.includes('localhost') ? 'http' : 'https';
         const baseUrl = `${protocol}://${host}`;
         try {
-            const fallbackTwiml = lang === 'fr' 
-                ? `<Response><Say voice="Polly.Lea" language="fr-FR">Merci d'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.</Say><Record action="${baseUrl}/voicemail/fr?dept=${encodeURIComponent(department)}" maxLength="60" transcribe="true"/></Response>`
-                : `<Response><Say voice="Polly.Joanna">Thank you for calling Haconet. All of our representatives are currently busy. Please leave a message after the tone.</Say><Record action="${baseUrl}/voicemail/en?dept=${encodeURIComponent(department)}" maxLength="60" transcribe="true"/></Response>`;
-            
             await twilioClient.calls(inboundCallSid).update({
-                twiml: fallbackTwiml
+                url: `${baseUrl}/dial-fallback/${lang}?dept=${encodeURIComponent(department)}`,
+                method: 'POST'
             });
         } catch (e) {
             console.log("Inbound caller update error:", e.message, e);
@@ -925,11 +922,15 @@ app.all('/dial-fallback/en', (req, res) => {
     const dialStatus = req.body.DialCallStatus;
     const department = req.query.dept || 'General';
 
+    const host = req.get('host') || 'api.haconet.org';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
     if (dialStatus === 'completed' || dialStatus === 'answered') {
         twiml.hangup();
     } else {
         twiml.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. All of our representatives are currently busy. Please leave a message after the tone.');
-        twiml.record({ action: `/voicemail/en?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true });
+        twiml.record({ action: `${baseUrl}/voicemail/en?dept=${encodeURIComponent(department)}`, maxLength: 60 });
     }
     res.type('text/xml');
     res.send(twiml.toString());
@@ -1054,11 +1055,15 @@ app.all('/dial-fallback/fr', (req, res) => {
     const dialStatus = req.body.DialCallStatus;
     const department = req.query.dept || 'General';
 
+    const host = req.get('host') || 'api.haconet.org';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
     if (dialStatus === 'completed' || dialStatus === 'answered') {
         twiml.hangup();
     } else {
         twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.');
-        twiml.record({ action: `/voicemail/fr?dept=${encodeURIComponent(department)}`, maxLength: 60, transcribe: true });
+        twiml.record({ action: `${baseUrl}/voicemail/fr?dept=${encodeURIComponent(department)}`, maxLength: 60 });
     }
     res.type('text/xml');
     res.send(twiml.toString());
