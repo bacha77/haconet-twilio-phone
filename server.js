@@ -676,7 +676,7 @@ app.all('/menu/en', (req, res) => {
         twiml.hangup();
     } else {
         const gather = twiml.gather({ numDigits: 1, action: '/gather/en', method: 'POST' });
-        gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our E S L Program, press 2. For Cultural, press 3. For Social Services, press 4. For any other questions, press 5.');
+        gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our Educational Program, press 2. For Cultural, press 3. For Social Services, press 4. For any other questions, press 5.');
         twiml.redirect(`/menu/en?attempt=${attempt + 1}`);
     }
     res.type('text/xml');
