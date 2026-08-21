@@ -145,9 +145,9 @@ function isBusinessHours() {
         const day = nyTime.getUTCDay();
         const hour = nyTime.getUTCHours();
         
-        if (day === 0 || day === 6) return false; 
-        if (hour < 9 || hour >= 17) return false; 
-        return true;
+        // if (day === 0 || day === 6) return false; 
+        // if (hour < 9 || hour >= 17) return false; 
+        return true; // TEMPORARILY OPEN FOR TESTING
     } catch (e) {
         console.error("isBusinessHours error:", e);
         return false;
@@ -522,9 +522,9 @@ app.all(['/whatsapp', '/sms'], async (req, res) => {
             
             const systemPrompt = `You are a helpful assistant for Haconet (Haitian Community Network) in Columbus, OH. 
 Your primary language is Haitian Creole. Always reply in Haitian Creole unless asked otherwise by the user. 
-You provide help with Immigration (TPS, Asylum, Court Cases), English Classes (ESL), Health, Cultural events, and Social Services. 
+You provide help with Immigration (TPS, Asylum, Court Cases), Educational Programs (Pwogram Edikatif), Health, Cultural events, and Social Services. 
 Our address is 2020 Brice Rd, Reynoldsburg, OH 43068.
-Analyze the user's message and assign them to one of the following departments: "Immigration", "ESL", "Health", "Cultural", "Social Services", or "General".
+Analyze the user's message and assign them to one of the following departments: "Immigration", "Educational Program", "Health", "Cultural", "Social Services", or "General".
 If the user's question requires a human representative (e.g., they want to talk to someone, book an appointment, or you don't know the answer), reply politely in Creole and include the exact text "[PAUSE_BOT]" at the end of your reply.
 Keep your responses short, concise, and friendly.
 You MUST output your response in JSON format containing two keys: "reply" (your message) and "department" (the assigned department).`;
@@ -693,7 +693,7 @@ app.all('/gather/en', async (req, res) => {
             forwardNumber = '+19378564921';
             break;
         case '2':
-            department = 'ESL';
+            department = 'Educational Program';
             forwardNumber = '+16142549407';
             break;
         case '3':
@@ -794,7 +794,7 @@ app.all('/gather/fr', async (req, res) => {
             forwardNumber = '+19378564921';
             break;
         case '2':
-            department = 'ESL';
+            department = 'Educational Program';
             forwardNumber = '+16142549407';
             break;
         case '3':
@@ -1045,7 +1045,7 @@ app.all('/gather/fr', (req, res) => {
             forwardNumber = '+19378564921';
             break;
         case '2':
-            department = 'ESL';
+            department = 'Educational Program';
             forwardNumber = '+16142549407';
             break;
         case '3':
