@@ -145,9 +145,9 @@ function isBusinessHours() {
         const day = nyTime.getUTCDay();
         const hour = nyTime.getUTCHours();
         
-        // if (day === 0 || day === 6) return false; 
-        // if (hour < 9 || hour >= 17) return false; 
-        return true; // TEMPORARILY OPEN FOR TESTING
+        if (day === 0 || day === 6) return false; 
+        if (hour < 9 || hour >= 17) return false; 
+        return true;
     } catch (e) {
         console.error("isBusinessHours error:", e);
         return false;
@@ -603,8 +603,6 @@ app.all('/voice', (req, res) => {
         twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true });
     } else {
         // Normal Business Hours Menu
-        const forwarded = req.body.ForwardedFrom || 'none';
-        twiml.say({ voice: 'Polly.Joanna' }, `Debug check. Forwarded from is ${forwarded.split('').join(' ')}.`);
         const gather = twiml.gather({ numDigits: 1, action: '/language', method: 'POST' });
         gather.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. For English, press 1.');
         gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service en créole, veuillez appuyer sur le deux.');
