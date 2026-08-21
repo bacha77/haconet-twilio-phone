@@ -603,6 +603,8 @@ app.all('/voice', (req, res) => {
         twiml.record({ action: '/voicemail/en', maxLength: 120, transcribe: true });
     } else {
         // Normal Business Hours Menu
+        const forwarded = req.body.ForwardedFrom || 'none';
+        twiml.say({ voice: 'Polly.Joanna' }, `Debug check. Forwarded from is ${forwarded.split('').join(' ')}.`);
         const gather = twiml.gather({ numDigits: 1, action: '/language', method: 'POST' });
         gather.say({ voice: 'Polly.Joanna' }, 'Thank you for calling Haconet. For English, press 1.');
         gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service en créole, veuillez appuyer sur le deux.');
