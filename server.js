@@ -676,7 +676,7 @@ app.all('/menu/en', (req, res) => {
         twiml.hangup();
     } else {
         const gather = twiml.gather({ numDigits: 1, action: '/gather/en', method: 'POST' });
-        gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our Educational Program, press 2. For Cultural, press 3. For Social Services, press 4. For any other questions, press 5.');
+        gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our Educational Programs, press 2. For Cultural, press 3. For Social Services, press 4. For any other questions, press 5.');
         twiml.redirect(`/menu/en?attempt=${attempt + 1}`);
     }
     res.type('text/xml');
@@ -693,7 +693,7 @@ app.all('/gather/en', async (req, res) => {
             forwardNumber = '+19378564921';
             break;
         case '2':
-            department = 'Educational Program';
+            department = 'Educational Programs';
             forwardNumber = '+16142549407';
             break;
         case '3':
@@ -794,7 +794,7 @@ app.all('/gather/fr', async (req, res) => {
             forwardNumber = '+19378564921';
             break;
         case '2':
-            department = 'Educational Program';
+            department = 'Educational Programs';
             forwardNumber = '+16142549407';
             break;
         case '3':
