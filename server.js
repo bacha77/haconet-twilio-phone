@@ -133,6 +133,7 @@ async function sendAutoReply(callerNumber) {
 
 // Helper to check if it's currently business hours (Mon-Fri, 9AM-5PM EST)
 function isBusinessHours() {
+    return true; // TEMPORARY: Force business hours ON for testing
     try {
         const now = new Date();
 
@@ -676,7 +677,7 @@ app.all('/menu/en', (req, res) => {
         twiml.hangup();
     } else {
         const gather = twiml.gather({ numDigits: 1, action: '/gather/en', method: 'POST' });
-        gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our Educational Programs, press 2. For Cultural, press 3. For Social Services, press 4. For any other questions, press 5.');
+        gather.say({ voice: 'Polly.Joanna' }, 'For questions regarding Immigration, press 1. For our Educational Programs, press 2. For Cultural, press 3. For Social Services, press 4. For Health, press 5. For General Inquiry, press 6.');
         twiml.redirect(`/menu/en?attempt=${attempt + 1}`);
     }
     res.type('text/xml');
@@ -705,6 +706,10 @@ app.all('/gather/en', async (req, res) => {
             forwardNumber = '+13476783686';
             break;
         case '5':
+            department = 'Health';
+            forwardNumber = '+17406415195';
+            break;
+        case '6':
             department = 'General';
             forwardNumber = '+16143708248';
             break;
@@ -806,6 +811,10 @@ app.all('/gather/fr', async (req, res) => {
             forwardNumber = '+13476783686';
             break;
         case '5':
+            department = 'Health';
+            forwardNumber = '+17406415195';
+            break;
+        case '6':
             department = 'General';
             forwardNumber = '+16143708248';
             break;
@@ -1025,146 +1034,6 @@ app.all('/voicemail/en', async (req, res) => {
     }
     
     twiml.say({ voice: 'Polly.Joanna' }, 'Your message has been recorded. Thank you for calling Haconet. Goodbye.');
-    res.type('text/xml');
-    res.send(twiml.toString());
-});
-
-app.all('/menu/fr', (req, res) => {
-    const twiml = new VoiceResponse();
-    const gather = twiml.gather({ numDigits: 1, action: '/gather/fr', method: 'POST' });
-    gather.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Pour le service d\'immigration, tapez 1. Pour notre programme d\'anglais, tapez 2. Pour le service culturel, tapez 3. Pour les services sociaux, tapez 4. Pour toute autre demande, tapez 5.');
-    twiml.redirect('/menu/fr');
-    res.type('text/xml');
-    res.send(twiml.toString());
-});
-
-app.all('/gather/fr', (req, res) => {
-    const twiml = new VoiceResponse();
-    let department = 'General';
-    let forwardNumber = '+16143708248';
-    switch (req.body.Digits) {
-        case '1':
-            department = 'Immigration';
-            forwardNumber = '+19378564921';
-            break;
-        case '2':
-            department = 'Educational Program';
-            forwardNumber = '+16142549407';
-            break;
-        case '3':
-            department = 'Cultural';
-            forwardNumber = '+15619311029';
-            break;
-        case '4':
-            department = 'Social Services';
-            forwardNumber = '+13476783686';
-            break;
-        case '5':
-            department = 'General';
-            forwardNumber = '+16143708248';
-            break;
-        default:
-            twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Désolé, ce choix n\'est pas valide. Veuillez réessayer.');
-            twiml.redirect('/menu/fr');
-            return res.type('text/xml').send(twiml.toString());
-    }
-    
-    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, `Veuillez patienter pendant que nous vous connectons au département ${department}.`);
-    const inboundCallSid = req.body.CallSid;
-    const twilioNumber = req.body.To;
-    const host = req.get('host');
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const baseUrl = `${protocol}://${host}`;
-
-    twilioClient.calls.create({
-        to: forwardNumber,
-        from: twilioNumber,
-        url: `${baseUrl}/whisper?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
-        statusCallback: `${baseUrl}/outbound-status?inboundCallSid=${inboundCallSid}&dept=${encodeURIComponent(department)}&lang=fr&caller=${encodeURIComponent(req.body.From)}`,
-        statusCallbackEvent: ['completed', 'no-answer', 'canceled', 'failed', 'busy'],
-        timeout: 60
-    }).then(call => {
-        outboundCalls[inboundCallSid] = call.sid;
-    }).catch(e => console.error("Outbound Call Error:", e));
-
-    const dial = twiml.dial();
-    dial.conference({
-        waitUrl: baseUrl + '/hold-music',
-        waitMethod: 'POST',
-        startConferenceOnEnter: false,
-        endConferenceOnExit: true,
-        statusCallback: baseUrl + '/inbound-conference-status',
-        statusCallbackEvent: 'leave'
-    }, `conf_${inboundCallSid}`);
-
-    res.type('text/xml');
-    res.send(twiml.toString());
-});
-
-app.all('/dial-fallback/fr', (req, res) => {
-    const twiml = new VoiceResponse();
-    const dialStatus = req.body.DialCallStatus;
-    const department = req.query.dept || 'General';
-
-    const host = req.get('host') || 'api.haconet.org';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const baseUrl = `${protocol}://${host}`;
-
-    if (dialStatus === 'completed' || dialStatus === 'answered') {
-        twiml.hangup();
-    } else {
-        twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Merci d\'avoir appelé Haconet. Tous nos représentants sont actuellement occupés. Veuillez laisser un message après le bip sonore.');
-        twiml.record({ action: `${baseUrl}/voicemail/fr?dept=${encodeURIComponent(department)}`, maxLength: 60 });
-    }
-    res.type('text/xml');
-    res.send(twiml.toString());
-});
-
-app.all('/voicemail/fr', async (req, res) => {
-    const twiml = new VoiceResponse();
-    const recordingUrl = req.body.RecordingUrl;
-    let rawCallerNumber = req.body.From;
-    const department = req.query.dept || 'General';
-
-    if (recordingUrl && rawCallerNumber && supabase) {
-        if (rawCallerNumber === '+16146005530' || rawCallerNumber === '16146005530') {
-            rawCallerNumber = `${rawCallerNumber}_${req.body.CallSid || Date.now()}`;
-        }
-        // Unify with WhatsApp numbering format
-        const callerNumber = rawCallerNumber.startsWith('whatsapp:') ? rawCallerNumber : 'whatsapp:' + rawCallerNumber;
-        
-        try {
-            // Ensure contact exists and update department
-            await supabase.from('contacts').upsert([{ 
-                phone_number: callerNumber, 
-                department: department,
-                status: 'unread',
-                last_message_at: new Date().toISOString(),
-                last_updated: new Date().toISOString()
-            }], { onConflict: 'phone_number' });
-        } catch (e) {
-            console.error('Voicemail Contact DB Error (FR):', e);
-        }
-            
-        try {
-            // Insert voicemail audio into the dashboard inbox
-            await supabase.from('messages').insert([{
-                sender_number: callerNumber,
-                body: `ðŸ“ž Nouveau Message Vocal (${department})`,
-                media_url: recordingUrl,
-                media_type: 'audio/wav',
-                direction: 'inbound'
-            }]);
-        } catch (e) {
-            console.error('Voicemail Message DB Error (FR):', e);
-        }
-
-        // Keep legacy email/sms notifications if functions exist
-        if (typeof sendVoicemailEmail === 'function') sendVoicemailEmail(recordingUrl, rawCallerNumber);
-        if (typeof sendSmsConfirmation === 'function') sendSmsConfirmation(rawCallerNumber);
-    }
-    
-    twiml.say({ voice: 'Polly.Lea', language: 'fr-FR' }, 'Votre message a bien été enregistré. Merci d\'avoir appelé Haconet. Au revoir.');
     res.type('text/xml');
     res.send(twiml.toString());
 });
