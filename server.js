@@ -133,7 +133,6 @@ async function sendAutoReply(callerNumber) {
 
 // Helper to check if it's currently business hours (Mon-Fri, 9AM-5PM EST)
 function isBusinessHours() {
-    return true; // TEMPORARY: Force business hours ON for testing
     try {
         const now = new Date();
 
@@ -588,11 +587,30 @@ You MUST output your response in JSON format containing two keys: "reply" (your 
 });
 
 
-app.all('/voice', (req, res) => {
+app.all('/voice', async (req, res) => {
     const twiml = new VoiceResponse();
+    const callerNumber = (req.body && req.body.From) || (req.query && req.query.From);
+    
+    // Log the incoming voice call to the dashboard
+    if (supabase && callerNumber) {
+        try {
+            await supabase.from('messages').insert([{
+                sender_number: callerNumber,
+                body: '📞 [Incoming Voice Call]',
+                direction: 'inbound'
+            }]);
+            
+            // Upsert contact so they appear in the directory if new
+            await supabase.from('contacts').upsert(
+                { phone_number: callerNumber, last_message_at: new Date().toISOString() },
+                { onConflict: 'phone_number' }
+            );
+        } catch (e) {
+            console.error('Failed to log voice call:', e);
+        }
+    }
     
     if (!isBusinessHours()) {
-        const callerNumber = (req.body && req.body.From) || (req.query && req.query.From);
         if (callerNumber) sendAutoReply(callerNumber);
 
         // After-hours Answering Machine
