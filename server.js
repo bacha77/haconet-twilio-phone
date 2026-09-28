@@ -596,7 +596,7 @@ app.all('/voice', async (req, res) => {
         try {
             await supabase.from('messages').insert([{
                 sender_number: callerNumber,
-                body: '📞 [Incoming Voice Call]',
+                body: \`Call log: \${req.body.CallSid || ''}\`,
                 direction: 'inbound'
             }]);
             
@@ -949,6 +949,22 @@ app.all('/outbound-status', async (req, res) => {
     const department = req.query.dept || 'General';
     const lang = req.query.lang || 'en';
     const callerNumber = req.query.caller;
+
+    if (callStatus === 'completed' && supabase && callerNumber) {
+        try {
+            await supabase.from('messages').insert([{
+                sender_number: callerNumber,
+                body: \`📞 Call Answered by Staff (\${department})\`,
+                direction: 'inbound'
+            }]);
+            await supabase.from('contacts').upsert(
+                { phone_number: callerNumber, department: department, status: 'resolved', last_updated: new Date().toISOString() },
+                { onConflict: 'phone_number' }
+            );
+        } catch (e) {
+            console.error('Failed to log answered call:', e);
+        }
+    }
 
     if (['no-answer', 'canceled', 'failed', 'busy'].includes(callStatus)) {
         if (callerNumber) sendAutoReply(callerNumber);
